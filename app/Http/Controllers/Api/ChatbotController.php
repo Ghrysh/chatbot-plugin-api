@@ -30,18 +30,61 @@ class ChatbotController extends Controller
         $message = strtolower($request->input('message'));
         $sessionId = $request->input('session_id');
 
-        // Basic keyword matching (can be upgraded to NLP/AI later)
-        $knowledge = ChatbotKnowledge::where('client_id', $client->id)
-            ->where(function($q) use ($message) {
-                $q->where('keyword', 'LIKE', "%{$message}%")
-                  ->orWhereRaw("? LIKE CONCAT('%', keyword, '%')", [$message]);
-            })->first();
+        // =========================================================================
+        // IMPLEMENTASI OLLAMA AI (Porting dari ScanYuk)
+        // =========================================================================
+        $ollamaUrl = env('OLLAMA_URL', 'http://host.docker.internal:11434/api/chat');
+        $systemContent = "Kamu adalah asisten virtual (Customer Service) yang ramah dan profesional. Jawablah dengan bahasa Indonesia yang santai tapi sopan. Jawablah secara singkat, maksimal 2 kalimat.\n\n";
 
-        $reply = $knowledge ? $knowledge->response : "Maaf, saya tidak mengerti. Ingin berbicara dengan admin?";
+        // Ambil Data Knowledge Base
+        $knowledges = ChatbotKnowledge::where('client_id', $client->id)->get();
+        $bestMatch = null;
+        $highestScore = 0;
+
+        foreach ($knowledges as $k) {
+            $keyword = strtolower(trim($k->keyword));
+            if (str_contains($message, $keyword)) {
+                $score = strlen($keyword);
+                if ($score > $highestScore) {
+                    $highestScore = $score;
+                    $bestMatch = $k;
+                }
+            }
+        }
+
+        if ($bestMatch) {
+            $systemContent .= "Berikut adalah INFORMASI (SOP) untuk menjawab pertanyaan user:\n" . $bestMatch->response . "\n\nJawab HANYA berdasarkan informasi di atas. Jika informasi kurang jelas, sarankan user untuk request Live Chat.";
+        } else {
+            $systemContent .= "Kamu TIDAK TAHU jawaban dari pertanyaan user karena tidak ada di database pengetahuan (SOP) kamu. Tugasmu adalah meminta maaf dengan sopan, dan arahkan user untuk menekan tombol 'Live Chat'.";
+        }
+
+        // Build Messages array
+        $chatMessages = [
+            ['role' => 'system', 'content' => $systemContent],
+            ['role' => 'user', 'content' => $request->input('message')]
+        ];
+
+        $reply = "";
+        try {
+            $llmResponse = \Illuminate\Support\Facades\Http::timeout(10)->post($ollamaUrl, [
+                'model' => 'gemma2:2b',
+                'messages' => $chatMessages,
+                'stream' => false
+            ]);
+
+            if ($llmResponse->successful()) {
+                $aiText = trim($llmResponse->json('message.content'));
+                $reply = preg_replace('/^(aturan|rules|system|mimin:).*$/im', '', $aiText);
+            } else {
+                throw new \Exception("Ollama LLM Error");
+            }
+        } catch (\Exception $e) {
+            $reply = $bestMatch ? $bestMatch->response : "Halo, koneksi AI sedang sibuk. Silakan request Live Chat jika butuh bantuan admin.";
+        }
 
         return response()->json([
             'reply' => $reply,
-            'source' => 'bot'
+            'source' => 'ai_bot'
         ]);
     }
 
