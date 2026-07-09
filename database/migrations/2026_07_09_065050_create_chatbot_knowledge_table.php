@@ -13,7 +13,13 @@ return new class extends Migration
     {
         Schema::create('chatbot_knowledge', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('client_id');
+            $table->string('topic')->nullable();
+            $table->json('keywords'); // Changed from string 'keyword'
+            $table->text('response');
             $table->timestamps();
+
+            $table->foreign('client_id')->references('id')->on('clients')->onDelete('cascade');
         });
     }
 

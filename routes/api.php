@@ -12,4 +12,6 @@ Route::get('/user', function (Request $request) {
 Route::prefix('v1')->group(function () {
     Route::post('/chat/send', [ChatbotController::class, 'send']);
     Route::post('/chat/live/request', [ChatbotController::class, 'requestLiveChat']);
+    Route::post('/chat/live/poll', [ChatbotController::class, 'pollLiveChat']);
+    Route::post('/chat/live/send', [ChatbotController::class, 'sendLiveChatMessage']);
 });
