@@ -12,6 +12,10 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+// Embeddable Iframe Views
+Route::get('/embed/chatbot', [DashboardController::class, 'embedChatbot'])->name('embed.chatbot');
+Route::get('/embed/livechat', [DashboardController::class, 'embedLivechat'])->name('embed.livechat');
+
 use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LiveChatAdminController;
 
@@ -23,9 +27,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/knowledge/{id}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
 
     // Live Chat AJAX Endpoints
+    Route::get('/livechat/poll', [LiveChatAdminController::class, 'poll'])->name('livechat.poll');
+    Route::patch('/livechat/{id}/status', [LiveChatAdminController::class, 'updateStatus'])->name('livechat.status');
     Route::get('/livechat/{id}/history', [LiveChatAdminController::class, 'getHistory'])->name('livechat.history');
-    Route::post('/livechat/{id}/reply', [LiveChatAdminController::class, 'replyMessage'])->name('livechat.reply');
-    Route::post('/livechat/{id}/resolve', [LiveChatAdminController::class, 'resolveChat'])->name('livechat.resolve');
+    Route::post('/livechat/send', [LiveChatAdminController::class, 'replyMessage'])->name('livechat.send');
+    Route::post('/livechat/action', [LiveChatAdminController::class, 'action'])->name('livechat.action');
 });
 
 Route::middleware('auth')->group(function () {

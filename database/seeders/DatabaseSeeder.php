@@ -3,23 +3,38 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Client;
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // 1. Create Default Admin User
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@scanyuk.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // 2. Create Dummy SaaS Client
+        Client::firstOrCreate(
+            ['email' => 'client@example.com'],
+            [
+                'name' => 'Demo Client Website',
+                'license_key' => 'DEMO-LICENSE-12345',
+                'status' => 'active',
+                'subscription_expires_at' => now()->addYear()
+            ]
+        );
     }
 }
