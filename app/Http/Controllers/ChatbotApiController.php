@@ -15,8 +15,13 @@ class ChatbotApiController extends Controller
      */
     private function getClientId(Request $request)
     {
-        // Dummy logic: Get the first client from DB.
-        $client = \App\Models\Client::first();
+        $licenseKey = $request->header('X-FutureCloud-License');
+        if (!$licenseKey) return null;
+
+        $client = \App\Models\Client::where('license_key', $licenseKey)
+            ->where('status', 'active')
+            ->first();
+            
         return $client ? $client->id : null;
     }
 

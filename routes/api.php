@@ -21,6 +21,7 @@ use App\Http\Controllers\LicenseController;
 // Chatbot API endpoints for the Widget
 Route::prefix('v1')->group(function () {
     Route::post('/license/verify', [LicenseController::class, 'verify']);
+    Route::post('/license/sync', [LicenseController::class, 'sync']);
     Route::post('/chat/send', [ChatbotController::class, 'send']);
     Route::post('/chat/live/request', [ChatbotController::class, 'requestLiveChat']);
     Route::post('/chat/live/poll', [ChatbotController::class, 'pollLiveChat']);
