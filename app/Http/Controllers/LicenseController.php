@@ -71,7 +71,8 @@ class LicenseController extends Controller
 
         return response()->json([
             'bot_name' => $client ? $client->bot_name : 'Chatbot Ai',
-            'bot_color' => $client ? $client->bot_color : '#2563eb'
+            'bot_color' => $client ? $client->bot_color : '#2563eb',
+            'is_active' => $client ? ($client->status === 'active') : false
         ]);
     }
 
