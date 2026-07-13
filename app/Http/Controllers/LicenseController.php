@@ -63,4 +63,38 @@ class LicenseController extends Controller
             'message' => 'License synced successfully'
         ]);
     }
+
+    public function config(Request $request)
+    {
+        $licenseKey = $request->query('license');
+        $client = Client::where('license_key', $licenseKey)->first();
+
+        return response()->json([
+            'bot_name' => $client ? $client->bot_name : 'Chatbot Ai',
+            'bot_color' => $client ? $client->bot_color : '#2563eb'
+        ]);
+    }
+
+    public function install(Request $request)
+    {
+        $request->validate([
+            'license_key' => 'required|string'
+        ]);
+
+        $client = Client::where('license_key', $request->license_key)->first();
+        
+        if (!$client) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'License not found'
+            ], 404);
+        }
+
+        $client->update(['is_installed' => true]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Plugin marked as installed successfully'
+        ]);
+    }
 }

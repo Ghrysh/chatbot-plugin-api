@@ -8,23 +8,23 @@ use App\Models\ChatbotLead;
 
 class DashboardController extends Controller
 {
-    private function getClientId(Request $request = null)
+    private function getClient(Request $request = null)
     {
         if ($request && $request->has('license')) {
             $client = \App\Models\Client::where('license_key', $request->query('license'))
                 ->where('status', 'active')
                 ->first();
-            if ($client) return $client->id;
+            if ($client) return $client;
         }
         
         // Fallback for direct dashboard access (if any)
-        $client = \App\Models\Client::first();
-        return $client ? $client->id : null;
+        return \App\Models\Client::first();
     }
 
     public function index(Request $request)
     {
-        $clientId = $this->getClientId($request);
+        $client = $this->getClient($request);
+        $clientId = $client ? $client->id : null;
 
         $chatbotLeads = ChatbotLead::where('client_id', $clientId)
                                    ->orderBy('created_at', 'desc')
@@ -39,7 +39,8 @@ class DashboardController extends Controller
 
     public function embedChatbot(Request $request)
     {
-        $clientId = $this->getClientId($request);
+        $client = $this->getClient($request);
+        $clientId = $client ? $client->id : null;
 
         $chatbotLeads = ChatbotLead::where('client_id', $clientId)
                                    ->orderBy('created_at', 'desc')
@@ -49,12 +50,13 @@ class DashboardController extends Controller
                                              ->orderBy('created_at', 'desc')
                                              ->get();
 
-        return view('embed.chatbot', compact('chatbotLeads', 'chatbotKnowledges'));
+        return view('embed.chatbot', compact('chatbotLeads', 'chatbotKnowledges', 'client'));
     }
 
     public function embedLivechat(Request $request)
     {
-        $clientId = $this->getClientId($request);
-        return view('embed.livechat', compact('clientId'));
+        $client = $this->getClient($request);
+        $clientId = $client ? $client->id : null;
+        return view('embed.livechat', compact('clientId', 'client'));
     }
 }
