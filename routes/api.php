@@ -24,6 +24,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/widget/config', [LicenseController::class, 'config']);
     Route::post('/install', [LicenseController::class, 'install']);
     Route::post('/license/sync', [LicenseController::class, 'sync']);
+    Route::post('/license/status', [LicenseController::class, 'updateStatus']);
+    Route::post('/license/config', [LicenseController::class, 'updateConfig']);
+    Route::delete('/license/{key}', [LicenseController::class, 'destroy']);
     Route::post('/chat/send', [ChatbotController::class, 'send']);
     Route::post('/chat/live/request', [ChatbotController::class, 'requestLiveChat']);
     Route::post('/chat/live/poll', [ChatbotController::class, 'pollLiveChat']);
