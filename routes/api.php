@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/license/sync', [LicenseController::class, 'sync']);
     Route::post('/license/status', [LicenseController::class, 'updateStatus']);
     Route::post('/license/config', [LicenseController::class, 'updateConfig']);
+    Route::post('/license/reset', [LicenseController::class, 'resetData']);
     Route::delete('/license/{key}', [LicenseController::class, 'destroy']);
     Route::post('/chat/send', [ChatbotController::class, 'send']);
     Route::post('/chat/live/request', [ChatbotController::class, 'requestLiveChat']);

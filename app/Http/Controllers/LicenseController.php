@@ -143,6 +143,20 @@ class LicenseController extends Controller
         return response()->json(['message' => 'Not found'], 404);
     }
 
+    public function resetData(Request $request)
+    {
+        $request->validate([
+            'license_key' => 'required|string',
+        ]);
+        
+        $client = Client::where('license_key', $request->license_key)->first();
+        if ($client) {
+            \App\Models\ChatbotLead::where('client_id', $client->id)->delete();
+            return response()->json(['message' => 'Data reset successful']);
+        }
+        return response()->json(['message' => 'Not found'], 404);
+    }
+
     public function destroy($licenseKey)
     {
         $client = Client::where('license_key', $licenseKey)->first();

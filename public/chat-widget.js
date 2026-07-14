@@ -20,7 +20,8 @@
     const widgetHtml = `
     <div x-data="chatbotWidget()" class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[999] font-sans">
         <button @click="toggleChat()" :class="isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'" 
-            class="w-14 h-14 bg-gradient-to-r from-teal-500 to-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 hover:shadow-indigo-300 transition-all duration-300 absolute bottom-0 right-0">
+            class="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 hover:shadow-indigo-300 transition-all duration-300 absolute bottom-0 right-0"
+            :style="{ backgroundColor: botColor }">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
             <span x-show="unread > 0" class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm" x-text="unread" style="display: none;"></span>
         </button>
@@ -35,13 +36,11 @@
              style="display: none;" 
              class="absolute bottom-0 right-0 w-[calc(100vw-2rem)] sm:w-[380px] h-[550px] max-h-[85vh] bg-white rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-slate-100 flex flex-col overflow-hidden">
             
-            <div class="bg-gradient-to-r from-teal-500 to-indigo-600 p-3 sm:p-4 flex items-center justify-between shadow-md z-10 shrink-0">
+            <div class="p-3 sm:p-4 flex items-center justify-between shadow-md z-10 shrink-0" :style="{ backgroundColor: botColor }">
                 <div class="flex items-center gap-2 sm:gap-3">
                     <div class="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-base sm:text-xl shadow-inner border border-white/30">🤖</div>
                     <div>
-                        <h3 class="text-white font-bold text-sm sm:text-base leading-tight">
-                            Live Chat Support
-                        </h3>
+                        <h3 class="text-white font-bold text-sm sm:text-base leading-tight" x-text="botName"></h3>
                         <p class="text-teal-100 text-[9px] sm:text-[10px] flex items-center gap-1 mt-0.5"><span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span> Siap Membantu</p>
                     </div>
                 </div>
@@ -63,8 +62,9 @@
                             <span class="text-[9px] text-slate-400 font-bold" x-text="msg.sender === 'user' ? 'Anda' : (msg.sender === 'admin' ? liveAdminName : 'Bot')"></span>
                             <span class="text-[8px] text-slate-400/70 font-medium" x-show="msg.time" x-text="msg.time"></span>
                         </div>
-                        <div class="max-w-[85%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm whitespace-pre-line"
-                             :class="msg.sender === 'user' ? 'bg-indigo-500 text-white rounded-tr-sm' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-sm leading-relaxed'"
+                        <div class="max-w-[85%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm whitespace-pre-line leading-relaxed"
+                             :class="msg.sender === 'user' ? 'text-white rounded-tr-sm' : 'bg-white text-slate-700 border border-slate-200 rounded-tl-sm'"
+                             :style="msg.sender === 'user' ? 'background-color: ' + botColor : ''"
                              x-html="msg.text"></div>
                     </div>
                 </template>
@@ -79,7 +79,7 @@
             </div>
 
             <div x-show="showLiveChatBtn && liveChatStatus !== 'pending' && liveChatStatus !== 'active' && !isFinished" class="shrink-0 bg-slate-100/90 backdrop-blur-sm p-2.5 border-t border-slate-200 flex flex-wrap justify-center gap-2 z-10" style="display: none;">
-                <button @click="requestLiveChat()" class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-[10px] sm:text-xs font-bold rounded-full transition-all shadow-md flex items-center gap-1.5 transform hover:scale-105">
+                <button @click="requestLiveChat()" class="px-4 py-2 text-white text-[10px] sm:text-xs font-bold rounded-full transition-all shadow-md flex items-center gap-1.5 transform hover:scale-105" :style="{ backgroundColor: botColor }">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2h2v4l.586-.586z" /></svg>
                     Live Chat CS
                 </button>
@@ -105,7 +105,8 @@
                     ></textarea>
                     
                     <button type="submit" :disabled="!inputText.trim() || isFinished || isTyping" 
-                            class="absolute bottom-1 right-1 sm:bottom-1.5 sm:right-1.5 w-8 h-8 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-300 transition-all shadow-sm flex items-center justify-center transform active:scale-95">
+                            class="absolute bottom-1 right-1 sm:bottom-1.5 sm:right-1.5 w-8 h-8 text-white rounded-lg disabled:opacity-50 transition-all shadow-sm flex items-center justify-center transform active:scale-95"
+                            :style="{ backgroundColor: (!inputText.trim() || isFinished || isTyping) ? '#cbd5e1' : botColor }">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform rotate-0 ml-0.5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                     </button>
                 </form>
@@ -149,9 +150,25 @@
             livePollInterval: null,
 
             messages: [],
+            
+            botName: 'Live Chat Support',
+            botColor: '#2563eb',
 
             init() {
+                this.fetchConfig();
                 this.loadState();
+            },
+            
+            async fetchConfig() {
+                try {
+                    let license = window.ChatbotLicense || '';
+                    let res = await fetch(`${SAAS_URL}/v1/license/config?license=${license}`);
+                    let data = await res.json();
+                    if (data.bot_name) this.botName = data.bot_name;
+                    if (data.bot_color) this.botColor = data.bot_color;
+                } catch(e) {
+                    console.error('Failed to load bot config');
+                }
             },
 
             resizeInput() {
