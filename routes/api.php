@@ -33,3 +33,4 @@ Route::prefix('v1')->group(function () {
     Route::post('/chat/live/poll', [ChatbotController::class, 'pollLiveChat']);
     Route::post('/chat/live/send', [ChatbotController::class, 'sendLiveChatMessage']);
 });
+Route::get('/test_db', function() { return \App\Models\Client::all(); });

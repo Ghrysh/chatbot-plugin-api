@@ -24,7 +24,7 @@ use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LiveChatAdminController;
 
 // Web endpoints for Dashboard
-Route::middleware(['auth', 'verified'])->group(function () {
+// Route::middleware(['auth', 'verified'])->group(function () {
     // Knowledge Base CRUD
     Route::post('/knowledge', [KnowledgeController::class, 'store'])->name('knowledge.store');
     Route::put('/knowledge/{id}', [KnowledgeController::class, 'update'])->name('knowledge.update');
@@ -36,7 +36,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/livechat/{id}/history', [LiveChatAdminController::class, 'getHistory'])->name('livechat.history');
     Route::post('/livechat/send', [LiveChatAdminController::class, 'replyMessage'])->name('livechat.send');
     Route::post('/livechat/action', [LiveChatAdminController::class, 'action'])->name('livechat.action');
-});
+// });
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
