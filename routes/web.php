@@ -13,8 +13,12 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 // Embeddable Iframe Views
-Route::get('/embed/chatbot', [DashboardController::class, 'embedChatbot'])->name('embed.chatbot');
-Route::get('/embed/livechat', [DashboardController::class, 'embedLivechat'])->name('embed.livechat');
+Route::get('/embed/chatbot', [DashboardController::class, 'embedChatbot'])
+    ->name('embed.chatbot')
+    ->withoutMiddleware([\Illuminate\Http\Middleware\FrameGuard::class]);
+Route::get('/embed/livechat', [DashboardController::class, 'embedLivechat'])
+    ->name('embed.livechat')
+    ->withoutMiddleware([\Illuminate\Http\Middleware\FrameGuard::class]);
 
 use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LiveChatAdminController;
