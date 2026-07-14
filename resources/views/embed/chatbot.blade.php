@@ -45,7 +45,7 @@
                             </td>
                             <td class="px-6 py-4 font-semibold text-slate-800">{{ $lead->topic_context ?? 'Umum' }}</td>
                             <td class="px-6 py-4">
-                                @if($lead->contact_info === '-' || empty($lead->contact_info))
+                                @if($lead->live_chat_status !== 'ended' && ($lead->contact_info === '-' || empty($lead->contact_info)))
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 font-bold text-xs rounded-lg border border-blue-200">
                                         <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span> Chat Masih Aktif
                                     </span>
@@ -53,7 +53,9 @@
                                     <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-200 mb-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg> Chat Diakhiri
                                     </div><br>
-                                    <span class="text-xs font-bold text-slate-700">Follow up via: <span class="text-blue-600">{{ $lead->contact_info }}</span></span>
+                                    @if($lead->contact_info !== '-' && !empty($lead->contact_info))
+                                        <span class="text-xs font-bold text-slate-700">Follow up via: <span class="text-blue-600">{{ $lead->contact_info }}</span></span>
+                                    @endif
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-xs text-slate-500">{{ $lead->created_at->format('d M Y, H:i') }}</td>
