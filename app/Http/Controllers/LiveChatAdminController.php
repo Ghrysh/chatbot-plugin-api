@@ -69,7 +69,7 @@ class LiveChatAdminController extends Controller
         }
 
         $lead->chat_history = json_encode($history);
-        $lead->admin_id = auth()->id() ?? 1;
+        $lead->admin_id = auth()->id();
         $lead->save();
 
         return response()->json(['success' => true]);
@@ -94,7 +94,7 @@ class LiveChatAdminController extends Controller
         $lead->update([
             'chat_history' => json_encode($history),
             'live_chat_status' => 'active',
-            'admin_id' => auth()->id() ?? 1 // link to the logged in admin
+            'admin_id' => auth()->id() // link to the logged in admin
         ]);
 
         return response()->json(['success' => true]);
