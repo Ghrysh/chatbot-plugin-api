@@ -95,9 +95,10 @@ class LicenseController extends Controller
 
         // Beritahu FutureCloud bahwa plugin sudah diinstal
         try {
-            \Illuminate\Support\Facades\Http::post(env('MAIN_APP_URL', 'https://www.futurecloud.id') . '/webhook/plugin/installed', [
+            $response = \Illuminate\Support\Facades\Http::post(env('MAIN_APP_URL', 'https://www.futurecloud.id') . '/webhook/plugin/installed', [
                 'license_key' => $client->license_key
             ]);
+            \Illuminate\Support\Facades\Log::info("Webhook sent, response: " . $response->body());
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Gagal webhook is_installed ke futurecloud: ' . $e->getMessage());
         }
