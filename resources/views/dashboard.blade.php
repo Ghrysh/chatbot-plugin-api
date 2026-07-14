@@ -33,10 +33,10 @@
              x-transition:leave="transition ease-in duration-300"
              x-transition:leave-start="opacity-100 translate-y-0"
              x-transition:leave-end="opacity-0 -translate-y-4"
-             class="mb-6 flex items-center justify-between p-4 bg-teal-50 border border-teal-200 text-teal-700 rounded-2xl shadow-sm shadow-teal-100">
+             class="mb-6 flex items-center justify-between p-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl shadow-sm shadow-blue-100">
             
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-teal-500 text-white flex items-center justify-center flex-shrink-0">
+                <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                     </svg>
@@ -44,7 +44,7 @@
                 <p class="font-bold text-sm md:text-base">{{ session('success') }}</p>
             </div>
 
-            <button @click="show = false" class="text-teal-400 hover:text-teal-600 transition-colors">
+            <button @click="show = false" class="text-blue-400 hover:text-blue-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -57,11 +57,11 @@
             
             <div class="flex space-x-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
                 <button @click="activeTab = 'chatbot'" 
-                    :class="activeTab === 'chatbot' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'"
+                    :class="activeTab === 'chatbot' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'"
                     class="px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap">
                     Chatbot
                 </button>
-                <button @click="activeTab = 'livechat'" :class="activeTab === 'livechat' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'" class="px-5 py-2 rounded-full text-sm font-semibold transition-all">
+                <button @click="activeTab = 'livechat'" :class="activeTab === 'livechat' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'" class="px-5 py-2 rounded-full text-sm font-semibold transition-all">
                     Live Chat (CS)
                 </button>
             </div>
@@ -72,8 +72,8 @@
             
             <div class="mb-6 flex flex-col md:flex-row justify-between md:items-end gap-4">
                 <div class="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-xl w-full md:w-fit gap-1">
-                    <button @click="botTab = 'leads'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'leads' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'">Inbox Follow Up</button>
-                    <button @click="botTab = 'knowledge'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'knowledge' ? 'bg-white shadow-sm text-teal-600' : 'text-slate-500 hover:text-slate-700'">Latih Otak Bot</button>
+                    <button @click="botTab = 'leads'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'leads' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'">Inbox Follow Up</button>
+                    <button @click="botTab = 'knowledge'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'knowledge' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'">Latih Otak Bot</button>
                 </div>
             </div>
 
@@ -122,7 +122,7 @@
                                         <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-200 mb-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg> Chat Diakhiri
                                         </div><br>
-                                        <span class="text-xs font-bold text-slate-700">Follow up via: <span class="text-indigo-600">{{ $lead->contact_info }}</span></span>
+                                        <span class="text-xs font-bold text-slate-700">Follow up via: <span class="text-blue-600">{{ $lead->contact_info }}</span></span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-xs text-slate-500">{{ $lead->created_at->format('d M Y, H:i') }}</td>
@@ -162,7 +162,7 @@
                             <template x-for="(msg, i) in activeChat" :key="i">
                                 <div class="flex flex-col" :class="msg.sender === 'user' ? 'items-end' : 'items-start'">
                                     <span class="text-[9px] text-slate-400 mb-1 px-1 font-bold" x-text="msg.sender === 'user' ? 'User' : 'Bot AI / CS'"></span>
-                                    <div class="max-w-[85%] px-4 py-2.5 rounded-2xl text-sm shadow-sm" :class="msg.sender === 'user' ? 'bg-indigo-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'" x-html="msg.text"></div>
+                                    <div class="max-w-[85%] px-4 py-2.5 rounded-2xl text-sm shadow-sm" :class="msg.sender === 'user' ? 'bg-blue-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'" x-html="msg.text"></div>
                                 </div>
                             </template>
                         </div>
@@ -174,7 +174,7 @@
             <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
                 <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <h3 class="text-sm font-bold text-slate-700">Daftar Pengetahuan Bot</h3>
-                    <button @click="isEdit = false; form = {id:'', topic:'Umum', keywords:'', response:''}; showKnowModal = true" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">+ Tambah Respon</button>
+                    <button @click="isEdit = false; form = {id:'', topic:'Umum', keywords:'', response:''}; showKnowModal = true" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">+ Tambah Respon</button>
                 </div>
                 
                 <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
@@ -191,7 +191,7 @@
                             @foreach($chatbotKnowledges as $know)
                             <tr class="hover:bg-slate-50">
                                 <td class="px-6 py-4">
-                                    <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold whitespace-nowrap">{{ $know->topic ?? 'Umum' }}</span><br>
+                                    <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold whitespace-nowrap">{{ $know->topic ?? 'Umum' }}</span><br>
                                 </td>
                                 <td class="px-6 py-4">
                                     @php $kwArr = is_string($know->keywords) ? json_decode($know->keywords, true) : $know->keywords; $kwArr = $kwArr ?? []; @endphp
@@ -203,7 +203,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-xs leading-relaxed text-slate-700">{{ Str::limit($know->response, 100) }}</td>
                                 <td class="px-6 py-4 text-right space-y-1">
-                                    <button @click="isEdit = true; form = { id: '{{$know->id}}', topic: '{{$know->topic}}', keywords: '{{ implode(', ', $kwArr) }}', response: `{{$know->response}}` }; showKnowModal = true" class="text-teal-600 hover:text-teal-800 text-xs font-bold px-2 w-full text-right">Edit</button>
+                                    <button @click="isEdit = true; form = { id: '{{$know->id}}', topic: '{{$know->topic}}', keywords: '{{ implode(', ', $kwArr) }}', response: `{{$know->response}}` }; showKnowModal = true" class="text-blue-600 hover:text-blue-800 text-xs font-bold px-2 w-full text-right">Edit</button>
                                     <form action="{{ route('knowledge.destroy', $know->id) }}" method="POST" onsubmit="return confirm('Hapus respon bot ini?')">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 w-full text-right">Hapus</button>
@@ -231,17 +231,17 @@
                             <div class="p-6 overflow-y-auto space-y-4 bg-slate-50">
                                 <div>
                                     <label class="block text-sm font-bold text-slate-700 mb-1">Keywords (Koma Dipisahkan)</label>
-                                    <input type="text" name="keywords" x-model="form.keywords" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm" placeholder="harga, paket, cicilan" required>
+                                    <input type="text" name="keywords" x-model="form.keywords" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="harga, paket, cicilan" required>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-bold text-slate-700 mb-1">Balasan / Respon AI</label>
-                                    <textarea name="response" x-model="form.response" rows="5" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm" placeholder="Untuk informasi harga, kamu bisa cek di menu..." required></textarea>
+                                    <textarea name="response" x-model="form.response" rows="5" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Untuk informasi harga, kamu bisa cek di menu..." required></textarea>
                                 </div>
                             </div>
 
                             <div class="p-4 border-t border-slate-100 flex justify-end gap-3 bg-white">
                                 <button type="button" @click="showKnowModal = false" class="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors">Batal</button>
-                                <button type="submit" class="px-4 py-2 bg-teal-500 text-white font-bold rounded-lg hover:bg-teal-600 transition-colors" x-text="isEdit ? 'Simpan Perubahan' : 'Tambahkan'"></button>
+                                <button type="submit" class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors" x-text="isEdit ? 'Simpan Perubahan' : 'Tambahkan'"></button>
                             </div>
                         </form>
                     </div>
@@ -359,12 +359,12 @@
              }" 
              x-init="initLive()">
             
-            <div x-show="!notifEnabled" class="bg-indigo-50 border border-indigo-200 p-4 rounded-xl mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div x-show="!notifEnabled" class="bg-blue-50 border border-blue-200 p-4 rounded-xl mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="p-2 bg-indigo-100 rounded-full text-indigo-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></div>
+                    <div class="p-2 bg-blue-100 rounded-full text-blue-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></div>
                     <div><h4 class="font-bold text-slate-800">Aktifkan Notifikasi</h4><p class="text-xs text-slate-500">Izinkan browser untuk memunculkan suara saat pesan masuk.</p></div>
                 </div>
-                <button @click="enableNotif()" class="whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-xs font-bold transition-all">Izinkan Sekarang</button>
+                <button @click="enableNotif()" class="whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-xs font-bold transition-all">Izinkan Sekarang</button>
             </div>
 
             <div class="flex flex-col md:flex-row gap-6 h-[70vh]">
@@ -406,7 +406,7 @@
                                 </p>
                                 <p class="text-[10px] text-slate-500 mb-2 truncate italic" x-text="getLastMsg(chat.chat_history, chat.topic_context)"></p>
                                 <div class="flex gap-2">
-                                    <button @click="actionChat(chat.id, 'accept')" class="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-[10px] font-bold py-1.5 rounded transition-colors">Terima</button>
+                                    <button @click="actionChat(chat.id, 'accept')" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold py-1.5 rounded transition-colors">Terima</button>
                                     <button @click="actionChat(chat.id, 'reject')" class="flex-1 bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 text-[10px] font-bold py-1.5 rounded transition-colors">Tolak</button>
                                 </div>
                             </div>
@@ -418,7 +418,7 @@
                     </div>
                     <div class="overflow-y-auto flex-1 min-h-[100px]">
                         <template x-for="chat in activeChats" :key="chat.id">
-                            <div @click="openChat(chat)" class="p-3 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors relative" :class="currentChat?.id === chat.id ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''">
+                            <div @click="openChat(chat)" class="p-3 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors relative" :class="currentChat?.id === chat.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''">
                                 <div x-show="unreadChats[chat.id] && currentChat?.id !== chat.id" class="absolute right-3 top-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
                                 <div x-show="unreadChats[chat.id] && currentChat?.id !== chat.id" class="absolute right-3 top-3 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
                                 
@@ -462,14 +462,14 @@
                                             <span class="text-[9px] text-slate-500 font-bold" x-text="msg.sender.toUpperCase()"></span>
                                             <span class="text-[8px] text-slate-400" x-show="msg.time" x-text="msg.time"></span>
                                         </div>
-                                        <div class="max-w-[80%] px-3 py-2 rounded-xl text-sm shadow-sm" :class="(msg.sender === 'admin' || msg.sender === 'bot') ? 'bg-indigo-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'" x-html="msg.text"></div>
+                                        <div class="max-w-[80%] px-3 py-2 rounded-xl text-sm shadow-sm" :class="(msg.sender === 'admin' || msg.sender === 'bot') ? 'bg-blue-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'" x-html="msg.text"></div>
                                     </div>
                                 </template>
                             </div>
                             
                             <form x-show="currentChat.live_chat_status === 'active'" @submit.prevent="sendMessage()" class="p-3 bg-white border-t border-slate-100 flex gap-2">
-                                <input type="text" x-model="inputText" placeholder="Ketik balasan CS di sini..." class="flex-1 px-4 py-2.5 bg-slate-100 border-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all">
-                                <button type="submit" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 transition-colors">Kirim</button>
+                                <input type="text" x-model="inputText" placeholder="Ketik balasan CS di sini..." class="flex-1 px-4 py-2.5 bg-slate-100 border-transparent rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all">
+                                <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors">Kirim</button>
                             </form>
     
                             <div x-show="currentChat.live_chat_status === 'ended'" class="p-4 bg-slate-100 text-center text-xs font-bold text-slate-500">

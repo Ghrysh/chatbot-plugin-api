@@ -12,11 +12,11 @@
                     </span>
                 </h2>
                 <div class="flex gap-2 mt-4 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
-                    <button @click="activeTab = 'pending'" class="flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all" :class="activeTab === 'pending' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+                    <button @click="activeTab = 'pending'" class="flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all" :class="activeTab === 'pending' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
                         Menunggu <span x-show="pendingLeads.length" class="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px]" x-text="pendingLeads.length"></span>
                     </button>
-                    <button @click="activeTab = 'active'" class="flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all" :class="activeTab === 'active' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
-                        Aktif <span x-show="activeLeads.length" class="ml-1 px-1.5 py-0.5 bg-teal-100 text-teal-600 rounded-full text-[10px]" x-text="activeLeads.length"></span>
+                    <button @click="activeTab = 'active'" class="flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all" :class="activeTab === 'active' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+                        Aktif <span x-show="activeLeads.length" class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full text-[10px]" x-text="activeLeads.length"></span>
                     </button>
                     <button @click="activeTab = 'history'" class="flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all" :class="activeTab === 'history' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
                         Riwayat
@@ -33,10 +33,10 @@
                             <p class="text-slate-400 text-sm font-medium">Belum ada chat menunggu.</p>
                         </div>
                         <template x-for="lead in pendingLeads" :key="lead.id">
-                            <div class="bg-white p-4 rounded-2xl border border-slate-200 mb-2 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all group">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 mb-2 shadow-sm hover:border-blue-300 hover:shadow-md transition-all group">
                                 <div class="flex justify-between items-start mb-2">
                                     <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 font-bold text-xs">U</div>
+                                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 font-bold text-xs">U</div>
                                         <div>
                                             <h4 class="font-bold text-sm text-slate-800" x-text="lead.user ? lead.user.name : 'Guest'"></h4>
                                             <p class="text-[10px] text-slate-400" x-text="'IP: ' + lead.ip_address"></p>
@@ -45,7 +45,7 @@
                                     <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 animate-pulse">Waiting</span>
                                 </div>
                                 <p class="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg mb-3 line-clamp-2 border border-slate-100" x-text="lead.topic_context"></p>
-                                <button @click="actionChat(lead.id, 'accept')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                                <button @click="actionChat(lead.id, 'accept')" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
                                     Terima Chat
                                 </button>
                             </div>
@@ -58,9 +58,9 @@
                     <div>
                         <div x-show="activeLeads.length === 0" class="text-center p-8 text-slate-400 text-sm font-medium">Tidak ada chat aktif.</div>
                         <template x-for="lead in activeLeads" :key="lead.id">
-                            <div @click="selectChat(lead)" class="bg-white p-3 rounded-2xl border mb-2 cursor-pointer transition-all flex items-center gap-3 hover:bg-teal-50" :class="currentChat && currentChat.id === lead.id ? 'border-teal-400 shadow-sm bg-teal-50/30' : 'border-slate-200 hover:border-teal-300'">
+                            <div @click="selectChat(lead)" class="bg-white p-3 rounded-2xl border mb-2 cursor-pointer transition-all flex items-center gap-3 hover:bg-blue-50" :class="currentChat && currentChat.id === lead.id ? 'border-blue-400 shadow-sm bg-blue-50/30' : 'border-slate-200 hover:border-blue-300'">
                                 <div class="relative">
-                                    <div class="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-sm">U</div>
+                                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">U</div>
                                     <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
                                 </div>
                                 <div class="flex-1 min-w-0">
@@ -127,14 +127,14 @@
                                     <span class="text-[9px] text-slate-500 font-bold" x-text="msg.sender.toUpperCase()"></span>
                                     <span class="text-[8px] text-slate-400" x-show="msg.time" x-text="msg.time"></span>
                                 </div>
-                                <div class="max-w-[80%] px-3 py-2 rounded-xl text-sm shadow-sm" :class="(msg.sender === 'admin' || msg.sender === 'bot') ? 'bg-indigo-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'" x-html="msg.text"></div>
+                                <div class="max-w-[80%] px-3 py-2 rounded-xl text-sm shadow-sm" :class="(msg.sender === 'admin' || msg.sender === 'bot') ? 'bg-blue-500 text-white rounded-tr-sm' : 'bg-white border border-slate-200 text-slate-700 rounded-tl-sm'" x-html="msg.text"></div>
                             </div>
                         </template>
                     </div>
                     
                     <form x-show="currentChat.live_chat_status === 'active'" @submit.prevent="sendMessage()" class="p-3 bg-white border-t border-slate-100 flex gap-2">
-                        <input type="text" x-model="inputText" placeholder="Ketik balasan CS di sini..." class="flex-1 px-4 py-2.5 bg-slate-100 border-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all">
-                        <button type="submit" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 transition-colors">Kirim</button>
+                        <input type="text" x-model="inputText" placeholder="Ketik balasan CS di sini..." class="flex-1 px-4 py-2.5 bg-slate-100 border-transparent rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all">
+                        <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors">Kirim</button>
                     </form>
                 </div>
             </template>
