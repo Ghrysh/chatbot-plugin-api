@@ -1,5 +1,5 @@
 <x-embed-layout>
-    <div class="p-6 w-full h-full bg-slate-50" x-data="{ botTab: 'leads' }">
+    <div class="p-6 w-full h-full bg-slate-50" x-data="{ botTab: new URLSearchParams(location.search).get('tab') || 'leads' }">
         <div class="mb-6 flex flex-col md:flex-row justify-between md:items-end gap-4">
             <h2 class="text-xl font-bold text-slate-800">Manajemen Chatbot</h2>
             <div class="flex flex-col sm:flex-row bg-white shadow-sm p-1 rounded-xl w-full md:w-fit gap-1 border border-slate-200">
@@ -154,6 +154,7 @@
                         @csrf
                         <input type="hidden" name="_method" :value="isEdit ? 'PUT' : 'POST'">
                         <!-- If we embed, we might want to pass a redirect query param -->
+                        <input type="hidden" name="license" value="{{ request('license') }}">
                         <input type="hidden" name="redirect_to" value="/embed/chatbot">
                         
                         <div class="p-6 border-b border-slate-100 flex items-center justify-between">

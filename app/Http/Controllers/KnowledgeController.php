@@ -19,9 +19,13 @@ class KnowledgeController extends Controller
 
         // For this SaaS version, we assume the admin's currently selected client, 
         // but since we haven't built the full multi-tenant auth yet, we'll hardcode client_id 1 or get first.
-        $client = \App\Models\Client::first();
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
         if (!$client) {
-            return redirect()->back()->with('error', 'No client found. Please setup database.');
+            $url = url()->previous();
+        if (!str_contains($url, 'tab=')) {
+            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
+        }
+        return redirect($url)->with('error', 'No client found. Please setup database.');
         }
 
         ChatbotKnowledge::create([
@@ -31,7 +35,11 @@ class KnowledgeController extends Controller
             'response' => $request->response
         ]);
 
-        return redirect()->back()->with('success', 'Knowledge base added successfully.');
+        $url = url()->previous();
+        if (!str_contains($url, 'tab=')) {
+            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
+        }
+        return redirect($url)->with('success', 'Knowledge base added successfully.');
     }
 
     public function update(Request $request, $id)
@@ -50,7 +58,11 @@ class KnowledgeController extends Controller
             'response' => $request->response
         ]);
 
-        return redirect()->back()->with('success', 'Knowledge base updated successfully.');
+        $url = url()->previous();
+        if (!str_contains($url, 'tab=')) {
+            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
+        }
+        return redirect($url)->with('success', 'Knowledge base updated successfully.');
     }
 
     public function destroy($id)
@@ -58,6 +70,10 @@ class KnowledgeController extends Controller
         $knowledge = ChatbotKnowledge::findOrFail($id);
         $knowledge->delete();
 
-        return redirect()->back()->with('success', 'Knowledge base deleted successfully.');
+        $url = url()->previous();
+        if (!str_contains($url, 'tab=')) {
+            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
+        }
+        return redirect($url)->with('success', 'Knowledge base deleted successfully.');
     }
 }
