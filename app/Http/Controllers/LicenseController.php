@@ -15,7 +15,7 @@ class LicenseController extends Controller
             return response()->json([
                 'valid' => false,
                 'message' => 'License key is missing in header.'
-            ], 400);
+            ], 200);
         }
 
         $client = Client::where('license_key', $licenseKey)->first();
@@ -23,15 +23,22 @@ class LicenseController extends Controller
         if (!$client) {
             return response()->json([
                 'valid' => false,
-                'message' => 'License key not found.'
-            ], 404);
+                'message' => 'Lisensi tidak valid atau tidak terdaftar di sistem FutureCloud.'
+            ], 200);
+        }
+
+        if ($client->is_installed) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Lisensi ini sudah terinstall dan telah digunakan sebelumnya.'
+            ], 200);
         }
 
         if ($client->status !== 'active') {
             return response()->json([
                 'valid' => false,
-                'message' => 'License is inactive or suspended.'
-            ], 403);
+                'message' => 'Lisensi ini tidak aktif atau sedang ditangguhkan.'
+            ], 200);
         }
 
         return response()->json([
