@@ -168,12 +168,11 @@
         messages: [],
                 botName: 'Chatbot Ai',
                 botColor: '#2563eb',
-                isActive: false,
                 isActive: true,
 
         init() {
             this.loadState();
-            fetch(\`\${API_URL}/widget/config?license=\${LICENSE_KEY}\`)
+            fetch(\`${API_URL}/widget/config?license=${LICENSE_KEY}\`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.bot_name) this.botName = data.bot_name;
@@ -273,11 +272,11 @@
             
             if (this.leadId) {
                 try {
-                    await fetch(\`\${API_URL}/chat/send\`, {
+                    await fetch(\`${API_URL}/chat/send\`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-FutureCloud-License': '\${LICENSE_KEY}'
+                            'X-FutureCloud-License': \`${LICENSE_KEY}\`
                         },
                         body: JSON.stringify({ 
                             is_autoclose: true,
@@ -373,11 +372,11 @@
 
             try {
                 let isLive = (this.liveChatStatus === 'pending' || this.liveChatStatus === 'active');
-                let endpoint = isLive ? \`\${API_URL}/chat/live/send\` : \`\${API_URL}/chat/send\`;
+                let endpoint = isLive ? \`${API_URL}/chat/live/send\` : \`${API_URL}/chat/send\`;
                 
                 let res = await fetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-FutureCloud-License': '\${LICENSE_KEY}' },
+                    headers: { 'Content-Type': 'application/json', 'X-FutureCloud-License': \`${LICENSE_KEY}\` },
                     body: JSON.stringify({ 
                         message: msgText, 
                         topic: this.selectedTopic, 
@@ -423,11 +422,11 @@
             this.scrollToBottom();
 
             try {
-                let res = await fetch(\`\${API_URL}/chat/live/request\`, {
+                let res = await fetch(\`${API_URL}/chat/live/request\`, {
                     method: 'POST', 
                     headers: { 
                         'Content-Type': 'application/json', 
-                        'X-FutureCloud-License': '\${LICENSE_KEY}' 
+                        'X-FutureCloud-License': \`${LICENSE_KEY}\`
                     },
                     body: JSON.stringify({ lead_id: this.leadId })
                 });
@@ -448,7 +447,7 @@
             if(this.livePollInterval) clearInterval(this.livePollInterval);
             this.livePollInterval = setInterval(async () => {
                 if(!this.leadId) return;
-                let res = await fetch(\`\${API_URL}/chat/live/poll\`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-FutureCloud-License': '\${LICENSE_KEY}' }, body: JSON.stringify({ lead_id: this.leadId }) });
+                let res = await fetch(\`${API_URL}/chat/live/poll\`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-FutureCloud-License': \`${LICENSE_KEY}\` }, body: JSON.stringify({ lead_id: this.leadId }) });
                 let data = await res.json();
                 
                 this.liveChatStatus = data.status;
