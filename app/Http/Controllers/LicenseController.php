@@ -79,6 +79,7 @@ class LicenseController extends Controller
         return response()->json([
             'bot_name' => $client ? $client->bot_name : 'Chatbot Ai',
             'bot_color' => $client ? $client->bot_color : '#2563eb',
+            'whatsapp_number' => $client ? $client->whatsapp_number : null,
             'is_active' => $client ? ($client->status === 'active') : false
         ]);
     }
@@ -137,6 +138,7 @@ class LicenseController extends Controller
             'license_key' => 'required|string',
             'bot_name' => 'nullable|string',
             'bot_color' => 'nullable|string',
+            'whatsapp_number' => 'nullable|string|max:25',
         ]);
         
         $client = Client::where('license_key', $request->license_key)->first();
@@ -144,6 +146,7 @@ class LicenseController extends Controller
             $client->update([
                 'bot_name' => $request->bot_name,
                 'bot_color' => $request->bot_color,
+                'whatsapp_number' => $request->whatsapp_number,
             ]);
             return response()->json(['message' => 'Config updated']);
         }
