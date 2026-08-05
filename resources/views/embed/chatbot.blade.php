@@ -185,7 +185,7 @@
                     </form>
                 </div>
                 </div>
-            </div>
+
 
             <!-- Modal Auto Generate -->
             <div x-show="showAutoGenerateModal" style="display: none;" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -247,6 +247,7 @@
                         </div>
                     </form>
                 </div>
+            </div>
             </div>
         </div>
     </div>

@@ -250,6 +250,7 @@
                     </div>
                 </div>
 
+
                 <!-- Modal Auto Generate -->
                 <div x-show="showAutoGenerateModal" style="display: none;" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
                     <div x-show="showAutoGenerateModal" x-transition.opacity class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="if(!isGenerating) showAutoGenerateModal = false"></div>
@@ -257,7 +258,7 @@
                         <form action="/knowledge/generate" method="POST" enctype="multipart/form-data" class="flex flex-col h-full max-h-[90vh]" @submit="isGenerating = true">
                             @csrf
                             <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-                                <h3 class="font-bold text-lg text-slate-800">Auto Generate Pengetahuan</h3>
+                                <h3 class="font-bold text-lg text-slate-800">Upload File (Auto Generate AI)</h3>
                                 <button type="button" @click="if(!isGenerating) showAutoGenerateModal = false" class="text-slate-400 hover:text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
                             </div>
                             
@@ -288,21 +289,21 @@
                                                     <input id="file-upload" name="document" type="file" class="sr-only" accept=".pdf,.docx">
                                                 </label>
                                             </div>
-                                            <p class="text-xs text-slate-500">PDF, DOCX hingga 5MB</p>
+                                            <p class="text-xs text-slate-500">PDF, DOCX hingga 5MB. AI akan mengekstrak otomatis.</p>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div x-show="autoGenTab === 'text'" class="space-y-4">
                                     <label class="block text-sm font-bold text-slate-700">Masukkan Teks Pengetahuan</label>
-                                    <textarea name="raw_text" rows="8" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white" placeholder="Paste teks panjang dari website, artikel, atau deskripsi produk di sini..."></textarea>
+                                    <textarea name="raw_text" rows="8" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white" placeholder="Paste teks panjang dari website, artikel, atau deskripsi produk di sini... AI akan mengubahnya menjadi daftar FAQ otomatis."></textarea>
                                 </div>
                             </div>
 
                             <div class="p-4 border-t border-slate-100 flex justify-end gap-3 bg-white">
                                 <button type="button" @click="if(!isGenerating) showAutoGenerateModal = false" class="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors" :disabled="isGenerating">Batal</button>
                                 <button type="submit" class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transition-colors flex items-center" :disabled="isGenerating">
-                                    <span x-show="!isGenerating">Generate Pengetahuan</span>
+                                    <span x-show="!isGenerating">Mulai Generate</span>
                                     <span x-show="isGenerating">Memproses...</span>
                                 </button>
                             </div>
