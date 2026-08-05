@@ -28,6 +28,8 @@ use App\Http\Controllers\LiveChatAdminController;
     // Knowledge Base CRUD
     Route::post('/knowledge', [KnowledgeController::class, 'store'])->name('knowledge.store');
     Route::post('/knowledge/generate', [KnowledgeController::class, 'generate'])->name('knowledge.generate');
+    Route::get('/knowledge/job-status', [KnowledgeController::class, 'jobStatus'])->name('knowledge.job-status');
+    Route::post('/knowledge/job-cancel', [KnowledgeController::class, 'jobCancel'])->name('knowledge.job-cancel');
     Route::put('/knowledge/{id}', [KnowledgeController::class, 'update'])->name('knowledge.update');
     Route::delete('/knowledge/{id}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
 

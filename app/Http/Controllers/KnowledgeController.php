@@ -138,6 +138,10 @@ Teks: " . substr($text, 0, 8000);
 
         \Log::info("Starting Ollama request to {$ollamaUrl} with model {$model}. Prompt length: " . strlen($prompt));
 
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+        $clientId = $client ? $client->id : 1;
+        \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'processing', 3600);
+
         // Mencegah Nginx 504 Timeout dengan merespons lebih awal dan membiarkan proses berjalan di background
         if (function_exists('fastcgi_finish_request')) {
             session()->flash('success', 'Sistem AI sedang mengekstrak dokumen Anda di latar belakang. Proses ini memakan waktu 5-10 menit. Anda dapat menutup halaman ini dan kembali nanti, hasilnya akan otomatis ditambahkan ke daftar.');
@@ -174,6 +178,7 @@ Teks: " . substr($text, 0, 8000);
                 $topics = json_decode($cleanJson, true);
 
                 if (json_last_error() !== JSON_ERROR_NONE) {
+                    \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
                     \Log::error('Ollama JSON Error: ' . json_last_error_msg() . ' Raw: ' . $content);
                     return back()->with('error', 'Gagal memparsing JSON dari AI.');
                 }
@@ -181,10 +186,12 @@ Teks: " . substr($text, 0, 8000);
                 
                 $faqs = json_decode($content, true);
 
-                if (is_array($faqs) && count($faqs) > 0) {
-                    $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
-                    $clientId = $client ? $client->id : 1;
+                if (\Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId) === 'cancelled') {
+                    \Log::info("Ollama AI job cancelled by user.");
+                    return response()->json(['status' => 'cancelled']);
+                }
 
+                if (is_array($faqs) && count($faqs) > 0) {
                     $added = 0;
                     foreach ($faqs as $faq) {
                         if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
@@ -199,21 +206,41 @@ Teks: " . substr($text, 0, 8000);
                             $added++;
                         }
                     }
-                    
+
+                    \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
                     $url = url()->previous();
                     if (!str_contains($url, 'tab=')) {
                         $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
                     }
                     return redirect($url)->with('success', "Berhasil menambahkan $added pengetahuan baru dari dokumen.");
                 } else {
-                    return back()->with('error', 'AI gagal menghasilkan format data yang valid.');
+                    \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
+                    return back()->with('error', 'Tidak ada data valid yang dihasilkan AI.');
                 }
             } else {
+                \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
                 return back()->with('error', 'Koneksi ke server AI Ollama gagal.');
             }
         } catch (\Exception $e) {
-            Log::error('Ollama Error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
+            \Log::error('Ollama Error: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan saat memproses data AI.');
         }
+    }
+
+    public function jobStatus(Request $request)
+    {
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+        $clientId = $client ? $client->id : 1;
+        $status = \Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId);
+        return response()->json(['status' => $status]);
+    }
+
+    public function jobCancel(Request $request)
+    {
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+        $clientId = $client ? $client->id : 1;
+        \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'cancelled', 3600);
+        return response()->json(['success' => true]);
     }
 }
