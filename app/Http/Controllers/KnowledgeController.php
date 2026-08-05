@@ -4,6 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\ChatbotKnowledge;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Smalot\PdfParser\Parser as PdfParser;
+use ZipArchive;
 
 class KnowledgeController extends Controller
 {
@@ -75,5 +80,112 @@ class KnowledgeController extends Controller
             $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
         }
         return redirect($url)->with('success', 'Knowledge base deleted successfully.');
+    }
+
+    public function generate(Request $request)
+    {
+        $request->validate([
+            'document' => 'nullable|file|mimes:pdf,docx|max:5120',
+            'raw_text' => 'nullable|string',
+        ]);
+
+        $text = '';
+
+        if ($request->hasFile('document')) {
+            $file = $request->file('document');
+            $ext = $file->getClientOriginalExtension();
+
+            if ($ext === 'pdf') {
+                $parser = new PdfParser();
+                $pdf = $parser->parseFile($file->getPathname());
+                $text = $pdf->getText();
+            } elseif ($ext === 'docx') {
+                $zip = new ZipArchive;
+                if ($zip->open($file->getPathname()) === true) {
+                    $xml = $zip->getFromName('word/document.xml');
+                    $zip->close();
+                    if ($xml !== false) {
+                        $text = strip_tags($xml);
+                    }
+                }
+            }
+        } elseif ($request->filled('raw_text')) {
+            $text = $request->raw_text;
+        }
+
+        $text = trim($text);
+
+        if (empty($text)) {
+            return back()->with('error', 'Teks atau dokumen kosong, tidak dapat digenerate.');
+        }
+
+        // Prompt Ollama
+        $prompt = "Anda adalah AI pembuat Knowledge Base. Ekstrak FAQ atau pengetahuan penting dari teks di bawah ini.
+Buatkan array JSON murni tanpa markdown, berisi object dengan struktur:
+- \"topic\": (string, kategori singkat)
+- \"intent_name\": (string, gunakan snake_case, misal 'harga_produk')
+- \"keywords\": (array of string, berisi 3-5 kata kunci yang relevan)
+- \"response\": (string, respon bot yang natural, ramah, dan informatif berbahasa Indonesia)
+
+Hanya kembalikan array JSON valid (tanpa backticks markdown atau teks lain).
+Teks: " . substr($text, 0, 8000); // Limit to avoid exceeding context for simple local models
+
+        $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434/api/chat');
+        $model = env('OLLAMA_MODEL', 'gemma2:2b');
+
+        try {
+            $response = Http::timeout(120)->post($ollamaUrl, [
+                'model' => $model,
+                'messages' => [
+                    ['role' => 'system', 'content' => 'Return ONLY valid JSON array.'],
+                    ['role' => 'user', 'content' => $prompt]
+                ],
+                'stream' => false,
+            ]);
+
+            if ($response->successful()) {
+                $content = $response->json('message.content');
+                
+                // Clean up possible markdown code blocks
+                $content = preg_replace('/```json/i', '', $content);
+                $content = preg_replace('/```/i', '', $content);
+                $content = trim($content);
+                
+                $faqs = json_decode($content, true);
+
+                if (is_array($faqs) && count($faqs) > 0) {
+                    $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+                    $clientId = $client ? $client->id : 1;
+
+                    $added = 0;
+                    foreach ($faqs as $faq) {
+                        if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
+                            // In this API version, intent_name is not in the DB, it uses 'topic'. Let's check DB schema.
+                            // Actually, earlier we saw ChatbotKnowledge has topic, keywords (array), response.
+                            ChatbotKnowledge::create([
+                                'client_id' => $clientId,
+                                'topic' => $faq['topic'] ?? 'Umum',
+                                'keywords' => is_array($faq['keywords']) ? $faq['keywords'] : explode(',', $faq['keywords']),
+                                'response' => $faq['response']
+                            ]);
+                            $added++;
+                        }
+                    }
+                    
+                    $url = url()->previous();
+                    if (!str_contains($url, 'tab=')) {
+                        $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
+                    }
+                    return redirect($url)->with('success', "Berhasil menambahkan $added pengetahuan baru dari dokumen.");
+                } else {
+                    return back()->with('error', 'AI gagal menghasilkan format data yang valid.');
+                }
+            } else {
+                return back()->with('error', 'Koneksi ke server AI Ollama gagal.');
+            }
+        } catch (\Exception $e) {
+            Log::error('Ollama Error: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat memproses data AI.');
+        }
     }
 }

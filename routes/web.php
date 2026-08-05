@@ -27,6 +27,7 @@ use App\Http\Controllers\LiveChatAdminController;
 // Route::middleware(['auth', 'verified'])->group(function () {
     // Knowledge Base CRUD
     Route::post('/knowledge', [KnowledgeController::class, 'store'])->name('knowledge.store');
+    Route::post('/knowledge/generate', [KnowledgeController::class, 'generate'])->name('knowledge.generate');
     Route::put('/knowledge/{id}', [KnowledgeController::class, 'update'])->name('knowledge.update');
     Route::delete('/knowledge/{id}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
 
