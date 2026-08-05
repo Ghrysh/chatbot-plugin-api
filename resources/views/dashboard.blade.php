@@ -266,29 +266,37 @@
                                   }, 1500); 
                               ">
                             @csrf
-                            <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                            
+                            <!-- Full Modal Loading Overlay -->
+                            <div x-show="isGenerating" style="display: none;" class="absolute inset-0 bg-white/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-8 text-center rounded-2xl shadow-[inset_0_0_100px_rgba(255,255,255,1)]">
+                                <svg class="animate-spin h-14 w-14 text-indigo-600 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                
+                                <h3 class="text-xl font-black text-slate-800 mb-2">AI Sedang Bekerja...</h3>
+                                <p class="text-sm font-medium text-slate-600 mb-8 max-w-sm">Mohon tunggu sebentar, AI sedang membaca dan mengekstrak dokumen Anda menjadi basis pengetahuan.</p>
+                                
+                                <div class="w-full max-w-xs bg-slate-100 rounded-full h-3 mb-2 overflow-hidden border border-slate-200">
+                                    <div class="bg-indigo-600 h-full rounded-full transition-all duration-500 ease-out shadow-sm" :style="`width: ${progress}%`"></div>
+                                </div>
+                                <div class="w-full max-w-xs flex justify-between text-xs font-bold text-slate-500 mb-8">
+                                    <span>Mengunggah & Memproses</span>
+                                    <span x-text="progress + '%'"></span>
+                                </div>
+                                
+                                <div class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-semibold flex gap-3 items-center text-left shadow-sm max-w-sm">
+                                    <svg class="w-6 h-6 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    <p class="leading-relaxed">Proses ini memakan waktu 1-3 menit. <br><span class="font-bold text-amber-900">Mohon jangan tutup atau muat ulang (refresh) halaman ini.</span></p>
+                                </div>
+                            </div>
+
+                            <div class="p-6 border-b border-slate-100 flex items-center justify-between relative z-10">
                                 <h3 class="font-bold text-lg text-slate-800">Upload File (Auto Generate AI)</h3>
                                 <button type="button" @click="if(!isGenerating) showAutoGenerateModal = false" class="text-slate-400 hover:text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
                             </div>
                             
-                            <div class="p-6 overflow-y-auto space-y-4 bg-slate-50 relative">
-                                <div x-show="isGenerating" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-b-2xl px-8">
-                                    <svg class="animate-spin h-10 w-10 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <p class="text-sm font-bold text-slate-700 mb-2">AI sedang mengekstrak & memproses...</p>
-                                    
-                                    <div class="w-full bg-slate-200 rounded-full h-2.5 mb-1 overflow-hidden">
-                                        <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out" :style="`width: ${progress}%`"></div>
-                                    </div>
-                                    <div class="w-full flex justify-between text-[10px] font-bold text-slate-500 mb-4">
-                                        <span>Mengunggah & Menganalisa</span>
-                                        <span x-text="progress + '%'"></span>
-                                    </div>
-                                    
-                                    <p class="text-xs text-slate-500 text-center max-w-xs">Proses ini memakan waktu 1-3 menit, mohon jangan tutup halaman ini.</p>
-                                </div>
+                            <div class="p-6 overflow-y-auto space-y-4 bg-slate-50 relative z-10">
                                 <div class="flex space-x-2 border-b border-slate-200 mb-4">
                                     <button type="button" @click="autoGenTab = 'file'" :class="autoGenTab === 'file' ? 'border-b-2 border-indigo-500 text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700 font-medium'" class="px-4 py-2 text-sm transition-colors">Upload File</button>
                                     <button type="button" @click="autoGenTab = 'text'" :class="autoGenTab === 'text' ? 'border-b-2 border-indigo-500 text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700 font-medium'" class="px-4 py-2 text-sm transition-colors">Teks Bebas</button>

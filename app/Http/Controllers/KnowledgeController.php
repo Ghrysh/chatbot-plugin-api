@@ -83,8 +83,8 @@ class KnowledgeController extends Controller
     }
 
     public function generate(Request $request)
-        set_time_limit(300); // 5 minutes max execution time
     {
+        set_time_limit(300); // 5 minutes max execution time
         $request->validate([
             'document' => 'nullable|file|mimes:pdf,docx|max:5120',
             'raw_text' => 'nullable|string',
