@@ -193,12 +193,12 @@ Teks: " . substr($text, 0, 8000);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
                     \Log::error('Ollama JSON Error: ' . json_last_error_msg() . ' Raw (first 1000 chars): ' . substr($content, 0, 1000));
-                    return back()->with('error', 'Gagal memparsing JSON dari AI.');
+                    return;
                 }
 
                 if (\Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId) === 'cancelled') {
                     \Log::info("Ollama AI job cancelled by user.");
-                    return response()->json(['status' => 'cancelled']);
+                    return;
                 }
 
                 \Log::info("Ollama parsed FAQs count: " . (is_array($faqs) ? count($faqs) : 'NOT_ARRAY'));
@@ -221,25 +221,20 @@ Teks: " . substr($text, 0, 8000);
 
                     \Log::info("Ollama AI job completed. Added $added knowledge items for client $clientId.");
                     \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
-                    $url = url()->previous();
-                    if (!str_contains($url, 'tab=')) {
-                        $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
-                    }
-                    return redirect($url)->with('success', "Berhasil menambahkan $added pengetahuan baru dari dokumen.");
                 } else {
                     \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
                     \Log::error('Ollama returned empty or non-array data. Type: ' . gettype($faqs) . ' Raw (first 500 chars): ' . substr($cleanJson, 0, 500));
-                    return back()->with('error', 'Tidak ada data valid yang dihasilkan AI.');
                 }
             } else {
                 \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-                return back()->with('error', 'Koneksi ke server AI Ollama gagal.');
+                \Log::error('Ollama HTTP error. Status: ' . $response->status() . ' Body: ' . substr($response->body(), 0, 500));
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
             \Log::error('Ollama Error: ' . $e->getMessage());
-            return back()->with('error', 'Terjadi kesalahan saat memproses data AI.');
         }
+        
+        return;
     }
 
     public function jobStatus(Request $request)
