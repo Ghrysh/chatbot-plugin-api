@@ -121,16 +121,17 @@ class KnowledgeController extends Controller
         }
 
         // Prompt Ollama
-        $prompt = "Anda adalah AI Asisten Pembuat Standar Operasional (SOP) dan Knowledge Base untuk Chatbot Customer Service. Tugas Anda adalah membedah teks yang diberikan dan merangkumnya menjadi berbagai topik spesifik agar chatbot bisa menjawab pertanyaan pelanggan dengan cerdas dan komprehensif.
+        $prompt = "Anda adalah AI Asisten Pembuat Standar Operasional (SOP) dan Knowledge Base untuk Chatbot Customer Service.
+Tugas Anda adalah merangkum teks berikut menjadi JSON murni yang terstruktur.
 
-Ekstrak SEMUA informasi penting dari teks di bawah ini dan kembalikan HANYA format array JSON murni, berisi daftar object dengan struktur berikut:
-- \"topic\": (string, Kategori/Topik. Contoh: 'Akun & Login', 'Paket Harga', 'Layanan')
-- \"keywords\": (array of string, hasilkan 8 hingga 15 kata kunci, variasi kata, keluhan, atau pertanyaan terkait yang mungkin diketik user. Contoh: ['lupa password', 'sandi', 'reset', 'gagal login', 'tidak bisa masuk'])
-- \"response\": (string, BALASAN BOT. Jangan hanya menyalin teks mentah. Rangkai ulang semua detail dari teks menjadi jawaban yang sangat lengkap, jelas, terstruktur, ramah, dan solutif layaknya Customer Service profesional. Sertakan semua instruksi jika ada.)
+Ekstrak HANYA informasi terpenting dan kembalikan array JSON berisi object dengan struktur berikut:
+- \"topic\": (string, Kategori/Topik. Contoh: 'Akun & Login', 'Layanan')
+- \"keywords\": (array of string, hasilkan 5-8 kata kunci atau pertanyaan terkait. Contoh: ['lupa password', 'sandi', 'tidak bisa masuk'])
+- \"response\": (string, BALASAN BOT. Rangkai ulang intisari teks menjadi jawaban yang jelas, ramah, dan solutif. Maksimal 3-4 kalimat padat.)
 
-Hasilkan topik SEBANYAK MUNGKIN (minimal 5-10 topik) agar seluruh isi teks ter-cover tanpa ada informasi penting yang terlewat.
-PENTING: Hanya kembalikan array JSON valid, tanpa teks awalan/akhiran, tanpa backticks markdown.
-Teks: " . substr($text, 0, 8000); // Limit to avoid exceeding context for simple local models
+Hasilkan 3-5 topik utama yang paling relevan.
+PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
+Teks: " . substr($text, 0, 8000);
 
         $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434/api/chat');
         $model = env('OLLAMA_MODEL', 'gemma2:2b');
