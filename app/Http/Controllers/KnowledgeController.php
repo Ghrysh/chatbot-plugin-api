@@ -184,29 +184,29 @@ Teks: " . substr($text, 0, 8000);
                 
                 // Clean markdown from response
                 $cleanJson = preg_replace('/```json\s*(.*?)\s*```/is', '$1', $content);
+                $cleanJson = trim($cleanJson);
                 
-                $topics = json_decode($cleanJson, true);
+                \Log::info("Ollama cleaned JSON (first 500 chars): " . substr($cleanJson, 0, 500));
+                
+                $faqs = json_decode($cleanJson, true);
 
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-                    \Log::error('Ollama JSON Error: ' . json_last_error_msg() . ' Raw: ' . $content);
+                    \Log::error('Ollama JSON Error: ' . json_last_error_msg() . ' Raw (first 1000 chars): ' . substr($content, 0, 1000));
                     return back()->with('error', 'Gagal memparsing JSON dari AI.');
                 }
-                $content = trim($content);
-                
-                $faqs = json_decode($content, true);
 
                 if (\Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId) === 'cancelled') {
                     \Log::info("Ollama AI job cancelled by user.");
                     return response()->json(['status' => 'cancelled']);
                 }
 
+                \Log::info("Ollama parsed FAQs count: " . (is_array($faqs) ? count($faqs) : 'NOT_ARRAY'));
+
                 if (is_array($faqs) && count($faqs) > 0) {
                     $added = 0;
-                    foreach ($faqs as $faq) {
+                    foreach ($faqs as $idx => $faq) {
                         if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
-                            // In this API version, intent_name is not in the DB, it uses 'topic'. Let's check DB schema.
-                            // Actually, earlier we saw ChatbotKnowledge has topic, keywords (array), response.
                             ChatbotKnowledge::create([
                                 'client_id' => $clientId,
                                 'topic' => $faq['topic'] ?? 'Umum',
@@ -214,9 +214,12 @@ Teks: " . substr($text, 0, 8000);
                                 'response' => $faq['response']
                             ]);
                             $added++;
+                        } else {
+                            \Log::warning("Ollama FAQ item #$idx missing required keys. Keys present: " . implode(', ', array_keys($faq)));
                         }
                     }
 
+                    \Log::info("Ollama AI job completed. Added $added knowledge items for client $clientId.");
                     \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
                     $url = url()->previous();
                     if (!str_contains($url, 'tab=')) {
@@ -225,6 +228,7 @@ Teks: " . substr($text, 0, 8000);
                     return redirect($url)->with('success', "Berhasil menambahkan $added pengetahuan baru dari dokumen.");
                 } else {
                     \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
+                    \Log::error('Ollama returned empty or non-array data. Type: ' . gettype($faqs) . ' Raw (first 500 chars): ' . substr($cleanJson, 0, 500));
                     return back()->with('error', 'Tidak ada data valid yang dihasilkan AI.');
                 }
             } else {

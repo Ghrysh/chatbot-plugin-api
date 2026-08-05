@@ -685,7 +685,11 @@
                                 url.searchParams.set('tab', 'knowledge');
                                 window.location.href = url.toString();
                             }, 1500);
-                        } else if (data.status === 'failed' || data.status === 'cancelled') {
+                        } else if (data.status === 'failed') {
+                            this.aiJob.status = 'failed';
+                            this.aiJob.progress = 0;
+                            clearInterval(this.pollInterval);
+                        } else if (data.status === 'cancelled') {
                             this.aiJob.status = null;
                             clearInterval(this.pollInterval);
                         }
@@ -719,7 +723,7 @@
         }
     }"
     x-init="initPoll()"
-    x-show="aiJob.status === 'processing' || aiJob.status === 'completed'"
+    x-show="aiJob.status === 'processing' || aiJob.status === 'completed' || aiJob.status === 'failed'"
     style="display: none; margin: 20px 0; padding: 20px 24px; width: 100%; max-width: 400px; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; overflow: hidden;"
     x-transition:enter="transition ease-out duration-300"
     x-transition:enter-start="opacity-0 translate-y-10"
@@ -758,23 +762,33 @@
                             <svg style="width: 14px; height: 14px; color: #16a34a;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                         </div>
                     </template>
-                    <span style="font-size: 14px; font-weight: 600; color: #334155;" x-text="aiJob.status === 'completed' ? 'Proses Selesai!' : 'AI mengekstrak data...'"></span>
+                    <template x-if="aiJob.status === 'failed'">
+                        <div style="position: relative; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 9999px; background: #fee2e2;">
+                            <svg style="width: 14px; height: 14px; color: #dc2626;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </div>
+                    </template>
+                    <span style="font-size: 14px; font-weight: 600; color: #334155;" x-text="aiJob.status === 'completed' ? 'Proses Selesai!' : (aiJob.status === 'failed' ? 'Proses Gagal!' : 'AI mengekstrak data...')"></span>
                 </div>
                 <template x-if="aiJob.status === 'processing'">
                     <button @click="showCancelModal = true" type="button" style="font-size: 11px; color: #dc2626; font-weight: 500; padding: 4px 8px; border-radius: 6px; background: #fef2f2; border: 1px solid #fee2e2; cursor: pointer;">
                         Batal
                     </button>
                 </template>
+                <template x-if="aiJob.status === 'failed'">
+                    <button @click="aiJob.status = null" type="button" style="font-size: 11px; color: #475569; font-weight: 500; padding: 4px 8px; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; cursor: pointer;">
+                        Tutup
+                    </button>
+                </template>
             </div>
             
             <div style="width: 100%; background: #f1f5f9; border-radius: 9999px; height: 8px; margin-bottom: 8px; overflow: hidden; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">
                 <div style="height: 8px; border-radius: 9999px; transition: all 700ms ease-out;"
-                     :style="{ backgroundColor: aiJob.status === 'completed' ? '#22c55e' : '#4f46e5', width: aiJob.progress + '%' }">
+                     :style="{ backgroundColor: aiJob.status === 'completed' ? '#22c55e' : (aiJob.status === 'failed' ? '#ef4444' : '#4f46e5'), width: aiJob.progress + '%' }">
                 </div>
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
-                <span x-text="aiJob.status === 'completed' ? 'Menyegarkan halaman...' : 'Berjalan di latar belakang'"></span>
+                <span x-text="aiJob.status === 'completed' ? 'Menyegarkan halaman...' : (aiJob.status === 'failed' ? 'Terjadi kesalahan saat memproses.' : 'Berjalan di latar belakang')"></span>
                 <span style="font-weight: 700; color: #334155;" x-text="Math.floor(aiJob.progress) + '%'"></span>
             </div>
         </div>
