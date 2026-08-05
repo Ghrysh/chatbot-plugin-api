@@ -142,6 +142,9 @@ Teks: " . substr($text, 0, 8000);
         if (function_exists('fastcgi_finish_request')) {
             session()->flash('success', 'Sistem AI sedang mengekstrak dokumen Anda di latar belakang. Proses ini memakan waktu 5-10 menit. Anda dapat menutup halaman ini dan kembali nanti, hasilnya akan otomatis ditambahkan ke daftar.');
             session()->save();
+            
+            // Redirect user back immediately to prevent white screen
+            header("Location: " . url()->previous(), true, 302);
             fastcgi_finish_request();
         }
 
