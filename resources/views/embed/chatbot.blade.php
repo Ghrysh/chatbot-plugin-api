@@ -104,10 +104,13 @@
         </div>
 
         <!-- CHATBOT: KNOWLEDGE BASE SUBTAB -->
-        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
+        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, autoGenTab: 'file', isGenerating: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h3 class="text-sm font-bold text-slate-700">Daftar Pengetahuan Bot</h3>
-                <button @click="isEdit = false; form = {id:'', topic:'Umum', keywords:'', response:''}; showKnowModal = true" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">+ Tambah Respon</button>
+                <div class="flex gap-2">
+                    <button @click="showAutoGenerateModal = true" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">Auto Generate (AI)</button>
+                    <button @click="isEdit = false; form = {id:'', topic:'Umum', keywords:'', response:''}; showKnowModal = true" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">+ Tambah Respon</button>
+                </div>
             </div>
             
             <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
@@ -178,6 +181,69 @@
                         <div class="p-4 border-t border-slate-100 flex justify-end gap-3 bg-white">
                             <button type="button" @click="showKnowModal = false" class="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors">Batal</button>
                             <button type="submit" class="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition-colors" x-text="isEdit ? 'Simpan Perubahan' : 'Tambahkan'"></button>
+                        </div>
+                    </form>
+                </div>
+                </div>
+            </div>
+
+            <!-- Modal Auto Generate -->
+            <div x-show="showAutoGenerateModal" style="display: none;" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                <div x-show="showAutoGenerateModal" x-transition.opacity class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="if(!isGenerating) showAutoGenerateModal = false"></div>
+                <div x-show="showAutoGenerateModal" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" class="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                    <form action="/knowledge/generate" method="POST" enctype="multipart/form-data" class="flex flex-col h-full max-h-[90vh]" @submit="isGenerating = true">
+                        @csrf
+                        <input type="hidden" name="license" value="{{ request('license') }}">
+                        <input type="hidden" name="redirect_to" value="/embed/chatbot">
+                        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                            <h3 class="font-bold text-lg text-slate-800">Auto Generate Pengetahuan</h3>
+                            <button type="button" @click="if(!isGenerating) showAutoGenerateModal = false" class="text-slate-400 hover:text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button>
+                        </div>
+                        
+                        <div class="p-6 overflow-y-auto space-y-4 bg-slate-50 relative">
+                            <div x-show="isGenerating" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-b-2xl">
+                                <svg class="animate-spin h-10 w-10 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p class="text-sm font-bold text-slate-700">AI sedang memproses data...</p>
+                                <p class="text-xs text-slate-500 mt-1">Jangan tutup halaman ini</p>
+                            </div>
+                            <div class="flex space-x-2 border-b border-slate-200 mb-4">
+                                <button type="button" @click="autoGenTab = 'file'" :class="autoGenTab === 'file' ? 'border-b-2 border-indigo-500 text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700 font-medium'" class="px-4 py-2 text-sm transition-colors">Upload File</button>
+                                <button type="button" @click="autoGenTab = 'text'" :class="autoGenTab === 'text' ? 'border-b-2 border-indigo-500 text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700 font-medium'" class="px-4 py-2 text-sm transition-colors">Teks Bebas</button>
+                            </div>
+                            
+                            <div x-show="autoGenTab === 'file'" class="space-y-4">
+                                <label class="block text-sm font-bold text-slate-700">Upload PDF / Word (.docx)</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg bg-white">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="flex text-sm text-slate-600 justify-center">
+                                            <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                                <span>Pilih file</span>
+                                                <input id="file-upload" name="document" type="file" class="sr-only" accept=".pdf,.docx">
+                                            </label>
+                                        </div>
+                                        <p class="text-xs text-slate-500">PDF, DOCX hingga 5MB</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div x-show="autoGenTab === 'text'" class="space-y-4">
+                                <label class="block text-sm font-bold text-slate-700">Masukkan Teks Pengetahuan</label>
+                                <textarea name="raw_text" rows="8" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white" placeholder="Paste teks panjang dari website, artikel, atau deskripsi produk di sini..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="p-4 border-t border-slate-100 flex justify-end gap-3 bg-white">
+                            <button type="button" @click="if(!isGenerating) showAutoGenerateModal = false" class="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors" :disabled="isGenerating">Batal</button>
+                            <button type="submit" class="px-4 py-2 bg-indigo-500 text-white font-bold rounded-lg hover:bg-indigo-600 transition-colors flex items-center" :disabled="isGenerating">
+                                <span x-show="!isGenerating">Generate Pengetahuan</span>
+                                <span x-show="isGenerating">Memproses...</span>
+                            </button>
                         </div>
                     </form>
                 </div>
