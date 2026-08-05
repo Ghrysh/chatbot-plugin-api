@@ -359,9 +359,6 @@
             </div>
         </div>
     </div>
-</x-embed-layout>
-
-
 <!-- Floating AI Progress Toast -->
 <div x-data="{
         aiJob: { status: null, progress: 0 },
@@ -458,3 +455,5 @@
         <span class="font-bold text-slate-700" x-text="aiJob.progress + '%'"></span>
     </div>
 </div>
+
+</x-embed-layout>
