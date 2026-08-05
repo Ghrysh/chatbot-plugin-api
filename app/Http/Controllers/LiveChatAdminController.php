@@ -8,10 +8,20 @@ use Carbon\Carbon;
 
 class LiveChatAdminController extends Controller
 {
-    public function poll()
+    private function getClientId(Request $request)
     {
-        // Get leads for the current client. For demo, we get all.
-        $leads = ChatbotLead::orderBy('updated_at', 'desc')->get();
+        if ($request->has('license')) {
+            $client = \App\Models\Client::where('license_key', $request->query('license'))->first();
+            return $client ? $client->id : null;
+        }
+        $client = \App\Models\Client::first();
+        return $client ? $client->id : null;
+    }
+
+    public function poll(Request $request)
+    {
+        $clientId = $this->getClientId($request);
+        $leads = ChatbotLead::where('client_id', $clientId)->orderBy('updated_at', 'desc')->get();
         
         return response()->json([
             'pending' => $leads->where('live_chat_status', 'pending')->values(),

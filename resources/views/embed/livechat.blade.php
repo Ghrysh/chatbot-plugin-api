@@ -162,7 +162,8 @@
                 
                 async fetchLeads() {
                     try {
-                        let res = await fetch('/livechat/poll');
+                        let params = window.location.search;
+                        let res = await fetch('/livechat/poll' + params);
                         let data = await res.json();
                         
                         // Cek apakah ada pending leads baru untuk dibunyikan ping
