@@ -1,5 +1,27 @@
 <x-embed-layout>
     <div class="p-6 w-full h-full bg-slate-50" x-data="{ botTab: new URLSearchParams(location.search).get('tab') || 'leads' }">
+        
+        <!-- Flash Messages -->
+        @if(session('success'))
+            <div x-data="{ show: true }" x-show="show" class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex justify-between items-center shadow-sm">
+                <div class="flex items-center gap-3">
+                    <svg class="w-6 h-6 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <p class="font-bold text-sm">{{ session('success') }}</p>
+                </div>
+                <button @click="show = false" class="text-emerald-500 hover:text-emerald-700 font-bold px-2">&times;</button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div x-data="{ show: true }" x-show="show" class="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl flex justify-between items-center shadow-sm">
+                <div class="flex items-center gap-3">
+                    <svg class="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <p class="font-bold text-sm">{{ session('error') }}</p>
+                </div>
+                <button @click="show = false" class="text-red-500 hover:text-red-700 font-bold px-2">&times;</button>
+            </div>
+        @endif
+
         <div class="mb-6 flex flex-col md:flex-row justify-between md:items-end gap-4">
             <h2 class="text-xl font-bold text-slate-800">Manajemen Chatbot</h2>
             <div class="flex flex-col sm:flex-row bg-white shadow-sm p-1 rounded-xl w-full md:w-fit gap-1 border border-slate-200">

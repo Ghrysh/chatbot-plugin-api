@@ -135,7 +135,7 @@ Teks: " . substr($text, 0, 8000); // Limit to avoid exceeding context for simple
         $model = env('OLLAMA_MODEL', 'gemma2:2b');
 
         try {
-            $response = Http::timeout(120)->post($ollamaUrl, [
+            $response = Http::timeout(300)->post($ollamaUrl, [
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => 'Return ONLY valid JSON array.'],
