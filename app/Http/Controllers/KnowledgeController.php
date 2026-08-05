@@ -140,6 +140,12 @@ Teks: " . substr($text, 0, 8000);
 
         $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
         $clientId = $client ? $client->id : 1;
+        
+        // Mencegah penumpukan proses AI yang akan membuat VPS crash (OOM / 100% CPU)
+        if (\Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId) === 'processing') {
+            return back()->with('error', 'Sistem AI saat ini sedang memproses dokumen Anda. Harap tunggu hingga selesai sebelum memulai tugas baru.');
+        }
+        
         \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'processing', 3600);
 
         // Mencegah PHP menghentikan script di tengah jalan
