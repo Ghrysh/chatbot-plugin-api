@@ -130,6 +130,7 @@ Ekstrak HANYA informasi terpenting dan kembalikan array JSON berisi object denga
 - \"response\": (string, BALASAN BOT. Rangkai ulang intisari teks menjadi jawaban yang jelas, ramah, dan solutif. Maksimal 3-4 kalimat padat.)
 
 Hasilkan 3-5 topik utama yang paling relevan.
+PENTING: Seluruh \"topic\", \"keywords\", dan \"response\" WAJIB menggunakan Bahasa Indonesia yang baik dan benar.
 PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
 Teks: " . substr($text, 0, 8000);
 
@@ -242,6 +243,12 @@ Teks: " . substr($text, 0, 8000);
         $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
         $clientId = $client ? $client->id : 1;
         $status = \Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId);
+        
+        // Hapus cache jika status sudah final (completed/failed) agar frontend tidak terjebak infinite reload loop
+        if ($status === 'completed' || $status === 'failed') {
+            \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
+        }
+        
         return response()->json(['status' => $status]);
     }
 
