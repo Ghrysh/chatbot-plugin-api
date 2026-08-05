@@ -184,7 +184,7 @@
                     if (data.status) {
                         this.aiJob.status = data.status;
                         if (data.status === 'processing') {
-                            if (this.aiJob.progress < 99) this.aiJob.progress += 2;
+                            if (this.aiJob.progress < 99) { this.aiJob.progress += (this.aiJob.progress >= 95 ? 0 : 2); }
                         } else if (data.status === 'completed') {
                             this.aiJob.progress = 100;
                             clearInterval(this.pollInterval);
@@ -274,7 +274,7 @@
             
             <div style="width: 100%; background: #f1f5f9; border-radius: 9999px; height: 8px; margin-bottom: 8px; overflow: hidden; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">
                 <div style="height: 8px; border-radius: 9999px; transition: all 700ms ease-out;"
-                     :style="(aiJob.status === 'completed' ? 'background: #22c55e;' : 'background: #4f46e5;') + ' width: ' + aiJob.progress + '%'">
+                     :style="{ backgroundColor: aiJob.status === 'completed' ? '#22c55e' : '#4f46e5', width: aiJob.progress + '%' }">
                 </div>
             </div>
             

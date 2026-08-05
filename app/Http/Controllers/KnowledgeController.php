@@ -142,6 +142,10 @@ Teks: " . substr($text, 0, 8000);
         $clientId = $client ? $client->id : 1;
         \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'processing', 3600);
 
+        // Mencegah PHP menghentikan script di tengah jalan
+        set_time_limit(0);
+        ignore_user_abort(true);
+
         // Mencegah Nginx 504 Timeout dengan merespons lebih awal dan membiarkan proses berjalan di background
         if (function_exists('fastcgi_finish_request')) {
             session()->flash('success', 'Sistem AI sedang mengekstrak dokumen Anda di latar belakang. Proses ini memakan waktu 5-10 menit. Anda dapat menutup halaman ini dan kembali nanti, hasilnya akan otomatis ditambahkan ke daftar.');
