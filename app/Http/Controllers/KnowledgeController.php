@@ -121,14 +121,15 @@ class KnowledgeController extends Controller
         }
 
         // Prompt Ollama
-        $prompt = "Anda adalah AI pembuat Knowledge Base. Ekstrak FAQ atau pengetahuan penting dari teks di bawah ini.
-Buatkan array JSON murni tanpa markdown, berisi object dengan struktur:
-- \"topic\": (string, kategori singkat)
-- \"intent_name\": (string, gunakan snake_case, misal 'harga_produk')
-- \"keywords\": (array of string, berisi 3-5 kata kunci yang relevan)
-- \"response\": (string, respon bot yang natural, ramah, dan informatif berbahasa Indonesia)
+        $prompt = "Anda adalah AI Asisten Pembuat Standar Operasional (SOP) dan Knowledge Base untuk Chatbot Customer Service. Tugas Anda adalah membedah teks yang diberikan dan merangkumnya menjadi berbagai topik spesifik agar chatbot bisa menjawab pertanyaan pelanggan dengan cerdas dan komprehensif.
 
-Hanya kembalikan array JSON valid (tanpa backticks markdown atau teks lain).
+Ekstrak SEMUA informasi penting dari teks di bawah ini dan kembalikan HANYA format array JSON murni, berisi daftar object dengan struktur berikut:
+- \"topic\": (string, Kategori/Topik. Contoh: 'Akun & Login', 'Paket Harga', 'Layanan')
+- \"keywords\": (array of string, hasilkan 8 hingga 15 kata kunci, variasi kata, keluhan, atau pertanyaan terkait yang mungkin diketik user. Contoh: ['lupa password', 'sandi', 'reset', 'gagal login', 'tidak bisa masuk'])
+- \"response\": (string, BALASAN BOT. Jangan hanya menyalin teks mentah. Rangkai ulang semua detail dari teks menjadi jawaban yang sangat lengkap, jelas, terstruktur, ramah, dan solutif layaknya Customer Service profesional. Sertakan semua instruksi jika ada.)
+
+Hasilkan topik SEBANYAK MUNGKIN (minimal 5-10 topik) agar seluruh isi teks ter-cover tanpa ada informasi penting yang terlewat.
+PENTING: Hanya kembalikan array JSON valid, tanpa teks awalan/akhiran, tanpa backticks markdown.
 Teks: " . substr($text, 0, 8000); // Limit to avoid exceeding context for simple local models
 
         $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434/api/chat');
