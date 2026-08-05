@@ -133,8 +133,10 @@ Hasilkan 3-5 topik utama yang paling relevan.
 PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
 Teks: " . substr($text, 0, 8000);
 
-        $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434/api/chat');
+        $ollamaUrl = env('OLLAMA_URL', 'http://127.0.0.1:11434/api/chat'); // Fallback to localhost if host is missing
         $model = env('OLLAMA_MODEL', 'gemma2:2b');
+
+        \Log::info("Starting Ollama request to {$ollamaUrl} with model {$model}. Prompt length: " . strlen($prompt));
 
         try {
             $response = Http::timeout(900)->post($ollamaUrl, [
@@ -146,12 +148,21 @@ Teks: " . substr($text, 0, 8000);
                 'stream' => false,
             ]);
 
+            \Log::info("Ollama responded with status: " . $response->status());
+
             if ($response->successful()) {
                 $content = $response->json('message.content');
+                \Log::info("Ollama success! Content length: " . strlen($content));
                 
-                // Clean up possible markdown code blocks
-                $content = preg_replace('/```json/i', '', $content);
-                $content = preg_replace('/```/i', '', $content);
+                // Clean markdown from response
+                $cleanJson = preg_replace('/```json\s*(.*?)\s*```/is', '$1', $content);
+                
+                $topics = json_decode($cleanJson, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    \Log::error('Ollama JSON Error: ' . json_last_error_msg() . ' Raw: ' . $content);
+                    return back()->with('error', 'Gagal memparsing JSON dari AI.');
+                }
                 $content = trim($content);
                 
                 $faqs = json_decode($content, true);
