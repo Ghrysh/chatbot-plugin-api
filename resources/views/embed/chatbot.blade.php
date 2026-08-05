@@ -216,20 +216,25 @@
                             
                             <div x-show="autoGenTab === 'file'" class="space-y-4">
                                 <label class="block text-sm font-bold text-slate-700">Upload PDF / Word (.docx)</label>
-                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg bg-white">
-                                    <div class="space-y-1 text-center">
-                                        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        <div class="flex text-sm text-slate-600 justify-center">
-                                            <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                                <span>Pilih file</span>
-                                                <input id="file-upload" name="document" type="file" class="sr-only" accept=".pdf,.docx">
-                                            </label>
+                                    <label 
+                                        x-data="{ isDropping: false, fileName: '' }"
+                                        @dragover.prevent="isDropping = true"
+                                        @dragleave.prevent="isDropping = false"
+                                        @drop.prevent="isDropping = false; $refs.fileInput.files = $event.dataTransfer.files; fileName = $event.dataTransfer.files[0]?.name"
+                                        :class="isDropping ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 bg-white'"
+                                        class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-slate-50 transition-colors">
+                                        <div class="space-y-1 text-center pointer-events-none">
+                                            <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            <div class="flex text-sm text-slate-600 justify-center">
+                                                <span class="font-medium text-indigo-600">Klik untuk pilih file atau Drag & Drop ke sini</span>
+                                                <input x-ref="fileInput" name="document" type="file" class="sr-only pointer-events-auto" accept=".pdf,.docx" @change="fileName = $event.target.files[0]?.name">
+                                            </div>
+                                            <p class="text-xs text-slate-500" x-show="!fileName">PDF, DOCX hingga 5MB. AI akan mengekstrak otomatis.</p>
+                                            <p class="text-sm font-bold text-indigo-600 mt-2" x-show="fileName" x-text="fileName"></p>
                                         </div>
-                                        <p class="text-xs text-slate-500">PDF, DOCX hingga 5MB</p>
-                                    </div>
-                                </div>
+                                    </label>
                             </div>
                             
                             <div x-show="autoGenTab === 'text'" class="space-y-4">
