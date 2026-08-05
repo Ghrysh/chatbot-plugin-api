@@ -191,7 +191,7 @@
                     if (data.status) {
                         this.aiJob.status = data.status;
                         if (data.status === 'processing') {
-                            if (this.aiJob.progress < 99) { this.aiJob.progress += (this.aiJob.progress >= 95 ? 0 : 2); }
+                            if (this.aiJob.progress < 99) { this.aiJob.progress += (99 - this.aiJob.progress) * 0.03; }
                         } else if (data.status === 'completed') {
                             this.aiJob.progress = 100;
                             clearInterval(this.pollInterval);
@@ -287,7 +287,7 @@
             
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
                 <span x-text="aiJob.status === 'completed' ? 'Menyegarkan halaman...' : 'Berjalan di latar belakang'"></span>
-                <span style="font-weight: 700; color: #334155;" x-text="aiJob.progress + '%'"></span>
+                <span style="font-weight: 700; color: #334155;" x-text="Math.floor(aiJob.progress) + '%'"></span>
             </div>
         </div>
     </template>
