@@ -311,30 +311,45 @@
 
                         <!-- VIEW 2: Progress Modal -->
                         <div x-show="isGenerating" style="display: none;" class="flex flex-col items-center justify-center p-8 text-center min-h-[350px] bg-white rounded-2xl">
-                            <svg class="animate-spin h-14 w-14 text-indigo-600 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <h3 class="text-xl font-black text-slate-800 mb-6">Sistem AI Sedang Bekerja</h3>
                             
-                            <h3 class="text-xl font-black text-slate-800 mb-2">Memproses Pengetahuan...</h3>
-                            <p class="text-sm font-medium text-slate-600 mb-8 max-w-sm">Mohon tunggu sebentar, AI sedang membaca dan mengekstrak dokumen Anda menjadi basis pengetahuan.</p>
-                            
-                            <div class="w-full max-w-xs bg-slate-100 rounded-full h-3 mb-2 overflow-hidden border border-slate-200 shadow-inner">
-                                <div class="bg-indigo-600 h-full rounded-full transition-all duration-500 ease-out" :style="`width: ${progress}%`"></div>
-                            </div>
-                            <div class="w-full max-w-xs flex justify-between text-xs font-bold text-slate-500 mb-2">
-                                <span>Mengunggah & Memproses</span>
-                                <span x-text="progress + '%'"></span>
-                            </div>
-                            <div class="w-full max-w-xs text-xs text-indigo-600 font-semibold mb-8 h-8 text-left italic">
-                                <span x-show="progress < 50" x-transition>Membaca dokumen...</span>
-                                <span x-show="progress >= 50 && progress < 90" x-transition>Mengekstrak informasi penting...</span>
-                                <span x-show="progress >= 90" x-transition class="text-amber-600">Sabar ya, AI sedang menyusun puluhan variasi keyword dan respon lengkap. Ini memakan waktu...</span>
-                            </div>
-                            
-                            <div class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-xs font-semibold flex gap-3 items-center text-left shadow-sm max-w-sm">
-                                <svg class="w-6 h-6 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                <p class="leading-relaxed">Proses ini memakan waktu 1-3 menit. <br><span class="font-bold text-amber-900">Mohon jangan tutup atau muat ulang (refresh) halaman ini.</span></p>
+                            <!-- Stepper UI -->
+                            <div class="flex flex-col gap-5 text-left w-full max-w-sm mx-auto">
+                                <!-- Step 1 -->
+                                <div class="flex items-start gap-4">
+                                    <div class="mt-0.5">
+                                        <svg x-show="progress >= 10" class="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        <svg x-show="progress < 10" class="animate-spin w-6 h-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h4 :class="progress >= 10 ? 'text-slate-800 font-bold' : 'text-indigo-600 font-bold'">Mengunggah & Membaca Dokumen</h4>
+                                    </div>
+                                </div>
+                                
+                                <!-- Step 2 -->
+                                <div class="flex items-start gap-4" :class="progress < 10 ? 'opacity-40' : ''">
+                                    <div class="mt-0.5">
+                                        <svg x-show="progress >= 40" class="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        <svg x-show="progress >= 10 && progress < 40" class="animate-spin w-6 h-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <div x-show="progress < 10" class="w-6 h-6 rounded-full border-2 border-slate-200"></div>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h4 :class="progress >= 40 ? 'text-slate-800 font-bold' : (progress >= 10 ? 'text-indigo-600 font-bold' : 'text-slate-500 font-medium')">Menganalisis Struktur Pengetahuan</h4>
+                                    </div>
+                                </div>
+
+                                <!-- Step 3 -->
+                                <div class="flex items-start gap-4" :class="progress < 40 ? 'opacity-40' : ''">
+                                    <div class="mt-0.5">
+                                        <svg x-show="progress >= 99" class="animate-spin w-6 h-6 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <svg x-show="progress >= 40 && progress < 99" class="animate-spin w-6 h-6 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        <div x-show="progress < 40" class="w-6 h-6 rounded-full border-2 border-slate-200"></div>
+                                    </div>
+                                    <div class="flex-1">
+                                        <h4 :class="progress >= 40 ? 'text-amber-600 font-bold' : 'text-slate-500 font-medium'">Mengekstrak Keyword & Menyusun SOP</h4>
+                                        <p x-show="progress >= 40" x-transition class="text-xs text-slate-500 mt-1">Proses intensif AI memakan waktu 3 - 10 menit. Mohon tidak menutup halaman ini.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 </form>
