@@ -138,12 +138,23 @@ Teks: " . substr($text, 0, 8000);
 
         \Log::info("Starting Ollama request to {$ollamaUrl} with model {$model}. Prompt length: " . strlen($prompt));
 
+        // Mencegah Nginx 504 Timeout dengan merespons lebih awal dan membiarkan proses berjalan di background
+        if (function_exists('fastcgi_finish_request')) {
+            session()->flash('success', 'Sistem AI sedang mengekstrak dokumen Anda di latar belakang. Proses ini memakan waktu 5-10 menit. Anda dapat menutup halaman ini dan kembali nanti, hasilnya akan otomatis ditambahkan ke daftar.');
+            session()->save();
+            fastcgi_finish_request();
+        }
+
         try {
-            $response = Http::timeout(900)->post($ollamaUrl, [
+            // Membatasi penggunaan CPU Ollama agar tidak membuat server VPS hang (ERR_TIMED_OUT)
+            $response = Http::timeout(1800)->post($ollamaUrl, [
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => 'Return ONLY valid JSON array.'],
                     ['role' => 'user', 'content' => $prompt]
+                ],
+                'options' => [
+                    'num_thread' => 1
                 ],
                 'stream' => false,
             ]);
