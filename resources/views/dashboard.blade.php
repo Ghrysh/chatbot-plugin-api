@@ -255,7 +255,16 @@
                 <div x-show="showAutoGenerateModal" style="display: none;" class="fixed inset-0 z-[200] flex items-center justify-center p-4">
                     <div x-show="showAutoGenerateModal" x-transition.opacity class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="if(!isGenerating) showAutoGenerateModal = false"></div>
                     <div x-show="showAutoGenerateModal" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" class="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-                        <form action="/knowledge/generate" method="POST" enctype="multipart/form-data" class="flex flex-col h-full max-h-[90vh]" @submit="isGenerating = true">
+                        <form action="/knowledge/generate" method="POST" enctype="multipart/form-data" class="flex flex-col h-full max-h-[90vh]" 
+                              x-data="{ progress: 0, progressInterval: null }"
+                              @submit="
+                                  isGenerating = true; 
+                                  progress = 0; 
+                                  progressInterval = setInterval(() => { 
+                                      if(progress < 90) progress += Math.floor(Math.random() * 2) + 1; 
+                                      else if(progress < 99) progress += 1; 
+                                  }, 1500); 
+                              ">
                             @csrf
                             <div class="p-6 border-b border-slate-100 flex items-center justify-between">
                                 <h3 class="font-bold text-lg text-slate-800">Upload File (Auto Generate AI)</h3>
@@ -263,13 +272,22 @@
                             </div>
                             
                             <div class="p-6 overflow-y-auto space-y-4 bg-slate-50 relative">
-                                <div x-show="isGenerating" class="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-b-2xl">
+                                <div x-show="isGenerating" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-b-2xl px-8">
                                     <svg class="animate-spin h-10 w-10 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                    <p class="text-sm font-bold text-slate-700">AI sedang memproses data...</p>
-                                    <p class="text-xs text-slate-500 mt-1">Jangan tutup halaman ini</p>
+                                    <p class="text-sm font-bold text-slate-700 mb-2">AI sedang mengekstrak & memproses...</p>
+                                    
+                                    <div class="w-full bg-slate-200 rounded-full h-2.5 mb-1 overflow-hidden">
+                                        <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out" :style="`width: ${progress}%`"></div>
+                                    </div>
+                                    <div class="w-full flex justify-between text-[10px] font-bold text-slate-500 mb-4">
+                                        <span>Mengunggah & Menganalisa</span>
+                                        <span x-text="progress + '%'"></span>
+                                    </div>
+                                    
+                                    <p class="text-xs text-slate-500 text-center max-w-xs">Proses ini memakan waktu 1-3 menit, mohon jangan tutup halaman ini.</p>
                                 </div>
                                 <div class="flex space-x-2 border-b border-slate-200 mb-4">
                                     <button type="button" @click="autoGenTab = 'file'" :class="autoGenTab === 'file' ? 'border-b-2 border-indigo-500 text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-700 font-medium'" class="px-4 py-2 text-sm transition-colors">Upload File</button>
