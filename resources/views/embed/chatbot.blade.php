@@ -126,7 +126,7 @@
         </div>
 
         <!-- CHATBOT: KNOWLEDGE BASE SUBTAB -->
-        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, showDeleteModal: false, deleteUrl: \'\', autoGenTab: \'file\', isGenerating: false, isEdit: false, form: { id: \'\', topic: \'\', keywords: \'\', response: \'\' } }">
+        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, showDeleteModal: false, deleteUrl: '', autoGenTab: 'file', isGenerating: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h3 class="text-sm font-bold text-slate-700">Daftar Pengetahuan Bot</h3>
                 <div class="flex gap-2">
