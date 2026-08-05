@@ -84,7 +84,7 @@ class KnowledgeController extends Controller
 
     public function generate(Request $request)
     {
-        set_time_limit(300); // 5 minutes max execution time
+        set_time_limit(900); // 5 minutes max execution time
         $request->validate([
             'document' => 'nullable|file|mimes:pdf,docx|max:5120',
             'raw_text' => 'nullable|string',
@@ -136,7 +136,7 @@ Teks: " . substr($text, 0, 8000); // Limit to avoid exceeding context for simple
         $model = env('OLLAMA_MODEL', 'gemma2:2b');
 
         try {
-            $response = Http::timeout(300)->post($ollamaUrl, [
+            $response = Http::timeout(900)->post($ollamaUrl, [
                 'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => 'Return ONLY valid JSON array.'],
