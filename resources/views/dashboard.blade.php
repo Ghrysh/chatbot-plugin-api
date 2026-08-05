@@ -661,7 +661,7 @@
         aiJob: { status: null, progress: 0 },
         pollInterval: null,
         checkStatus() {
-            fetch('{{ route('knowledge.job-status') }}')
+            fetch('{{ route('knowledge.job-status') }}?license={{ request('license') }}')
                 .then(res => res.json())
                 .then(data => {
                     if (data.status) {
@@ -692,7 +692,7 @@
         },
         cancelJob() {
             if(!confirm('Yakin ingin membatalkan proses AI? Data yang sedang diproses akan diabaikan.')) return;
-            fetch('{{ route('knowledge.job-cancel') }}', {
+            fetch('{{ route('knowledge.job-cancel') }}?license={{ request('license') }}', {
                 method: 'POST',
                 headers: { 
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
