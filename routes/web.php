@@ -32,7 +32,8 @@ use App\Http\Controllers\LiveChatAdminController;
     Route::post('/knowledge/job-cancel', [KnowledgeController::class, 'jobCancel'])->name('knowledge.job-cancel');
     Route::put('/knowledge/{id}', [KnowledgeController::class, 'update'])->name('knowledge.update');
     Route::delete('/knowledge/{id}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
-    Route::delete('/knowledge-all/destroy', [KnowledgeController::class, 'destroyAll'])->name('knowledge.destroy-all');
+    Route::post('/knowledge/job-accept', [KnowledgeController::class, 'jobAccept'])->name('knowledge.job-accept');
+    Route::post('/knowledge/job-reject', [KnowledgeController::class, 'jobReject'])->name('knowledge.job-reject');
 
     // Live Chat AJAX Endpoints
     Route::get('/livechat/poll', [LiveChatAdminController::class, 'poll'])->name('livechat.poll');

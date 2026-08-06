@@ -185,6 +185,7 @@ class KnowledgeController extends Controller
         }
 
         $totalAdded = 0;
+        $batchIds = [];
 
         try {
             foreach ($chunks as $chunkIndex => $chunk) {
@@ -241,12 +242,13 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
                     if (is_array($faqs) && count($faqs) > 0) {
                         foreach ($faqs as $idx => $faq) {
                             if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
-                                ChatbotKnowledge::create([
+                                $item = ChatbotKnowledge::create([
                                     'client_id' => $clientId,
                                     'topic' => $faq['topic'] ?? 'Umum',
                                     'keywords' => is_array($faq['keywords']) ? $faq['keywords'] : explode(',', $faq['keywords']),
                                     'response' => $faq['response']
                                 ]);
+                                $batchIds[] = $item->id;
                                 $totalAdded++;
                             } else {
                                 \Log::warning("Chunk {$chunkNum} FAQ item #{$idx} missing keys: " . implode(', ', array_keys($faq)));
@@ -266,6 +268,8 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
             if ($totalAdded > 0) {
                 \Log::info("All chunks processed. Total added: {$totalAdded} knowledge items for client {$clientId}.");
                 \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
+                \Illuminate\Support\Facades\Cache::put('ai_job_batch_' . $clientId, $batchIds, 3600);
+                \Illuminate\Support\Facades\Cache::put('ai_job_count_' . $clientId, $totalAdded, 3600);
             } else {
                 \Log::error("All chunks processed but no valid data extracted.");
                 \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
@@ -283,13 +287,14 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
         $clientId = $client ? $client->id : 1;
         $status = \Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId);
+        $count = \Illuminate\Support\Facades\Cache::get('ai_job_count_' . $clientId, 0);
         
-        // Hapus cache jika status sudah final (completed/failed) agar frontend tidak terjebak infinite reload loop
-        if ($status === 'completed' || $status === 'failed') {
+        // Hapus cache hanya jika failed (completed tetap disimpan untuk validasi terima/tolak)
+        if ($status === 'failed') {
             \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
         }
         
-        return response()->json(['status' => $status]);
+        return response()->json(['status' => $status, 'count' => $count]);
     }
 
     public function jobCancel(Request $request)
@@ -298,5 +303,39 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         $clientId = $client ? $client->id : 1;
         \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'cancelled', 3600);
         return response()->json(['success' => true]);
+    }
+
+    public function jobAccept(Request $request)
+    {
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+        $clientId = $client ? $client->id : 1;
+        $count = \Illuminate\Support\Facades\Cache::get('ai_job_count_' . $clientId, 0);
+        
+        // Bersihkan semua cache terkait job ini
+        \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_batch_' . $clientId);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_count_' . $clientId);
+        
+        return response()->json(['success' => true, 'message' => "Berhasil menambahkan {$count} pengetahuan baru."]);
+    }
+
+    public function jobReject(Request $request)
+    {
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+        $clientId = $client ? $client->id : 1;
+        $batchIds = \Illuminate\Support\Facades\Cache::get('ai_job_batch_' . $clientId, []);
+        $count = count($batchIds);
+        
+        if (!empty($batchIds)) {
+            ChatbotKnowledge::whereIn('id', $batchIds)->delete();
+            \Log::info("Rejected and deleted {$count} batch items for client {$clientId}");
+        }
+        
+        // Bersihkan semua cache terkait job ini
+        \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_batch_' . $clientId);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_count_' . $clientId);
+        
+        return response()->json(['success' => true, 'message' => "Hasil generate ({$count} item) telah ditolak dan dihapus."]);
     }
 }

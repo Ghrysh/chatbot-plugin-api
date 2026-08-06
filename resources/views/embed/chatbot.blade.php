@@ -127,35 +127,12 @@
         </div>
 
         <!-- CHATBOT: KNOWLEDGE BASE SUBTAB -->
-        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, showDeleteModal: false, showDeleteAllModal: false, deleteUrl: '', autoGenTab: 'file', isGenerating: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
+        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, showDeleteModal: false, deleteUrl: '', autoGenTab: 'file', isGenerating: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h3 class="text-sm font-bold text-slate-700">Daftar Pengetahuan Bot</h3>
                 <div class="flex gap-2">
-                    @if($knowledgeBases->count() > 0)
-                    <button @click="showDeleteAllModal = true" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-2 rounded-lg text-xs font-bold transition-colors">Hapus Semua</button>
-                    @endif
                     <button @click="showAutoGenerateModal = true" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">Auto Generate (AI)</button>
                     <button @click="isEdit = false; form = {id:'', topic:'Umum', keywords:'', response:''}; showKnowModal = true" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">+ Tambah Respon</button>
-                </div>
-            </div>
-
-            <!-- Modal Konfirmasi Hapus Semua -->
-            <div x-show="showDeleteAllModal" style="display: none;" class="fixed inset-0 z-[250] flex items-center justify-center p-4">
-                <div x-show="showDeleteAllModal" x-transition.opacity class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showDeleteAllModal = false"></div>
-                <div x-show="showDeleteAllModal" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden p-6 text-center" style="max-width: 420px;">
-                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                        <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </div>
-                    <h3 class="text-lg font-bold text-slate-800 mb-2">Hapus Semua Pengetahuan?</h3>
-                    <p class="text-sm text-slate-500 mb-6">Tindakan ini akan menghapus <strong class="text-red-600">{{ $knowledgeBases->count() }} pengetahuan</strong> bot secara permanen. Data tidak dapat dikembalikan.</p>
-                    <div class="flex gap-3">
-                        <button @click="showDeleteAllModal = false" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors">Batal</button>
-                        <form method="POST" action="{{ route('knowledge.destroy-all', ['license' => request('license')]) }}" class="flex-1">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="w-full px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">Ya, Hapus Semua</button>
-                        </form>
-                    </div>
                 </div>
             </div>
             
@@ -393,26 +370,24 @@
         </style>
         <!-- Floating AI Progress Toast (Global - Outside Tabs) -->
         <div x-data="{
-                aiJob: { status: null, progress: 0 },
+                aiJob: { status: null, progress: 0, count: 0 },
                 pollInterval: null,
                 showCancelModal: false,
+                isSubmitting: false,
                 checkStatus() {
                     fetch('{{ route('knowledge.job-status') }}?license={{ request('license') }}')
                         .then(res => res.json())
                         .then(data => {
                             if (data.status) {
                                 this.aiJob.status = data.status;
+                                this.aiJob.count = data.count || 0;
                                 if (data.status === 'processing') {
                                     if (this.aiJob.progress < 99) { this.aiJob.progress += (99 - this.aiJob.progress) * 0.03; }
                                 } else if (data.status === 'completed') {
                                     this.aiJob.progress = 100;
                                     clearInterval(this.pollInterval);
                                     this.showCancelModal = false;
-                                    setTimeout(() => {
-                                        let url = new URL(window.location.href);
-                                        url.searchParams.set('tab', 'knowledge');
-                                        window.location.href = url.toString();
-                                    }, 1500);
+                                    // Batal auto reload, tunggu user konfirmasi
                                 } else if (data.status === 'failed') {
                                     this.aiJob.status = 'failed';
                                     this.aiJob.progress = 0;
@@ -447,6 +422,38 @@
                         this.aiJob.status = null; 
                         this.showCancelModal = false;
                         if(this.pollInterval) clearInterval(this.pollInterval);
+                    });
+                },
+                acceptJob() {
+                    if (this.isSubmitting) return;
+                    this.isSubmitting = true;
+                    fetch('{{ route('knowledge.job-accept') }}?license={{ request('license') }}', {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    }).then(() => {
+                        let url = new URL(window.location.href);
+                        url.searchParams.set('tab', 'knowledge');
+                        window.location.href = url.toString();
+                    });
+                },
+                rejectJob() {
+                    if (this.isSubmitting) return;
+                    this.isSubmitting = true;
+                    fetch('{{ route('knowledge.job-reject') }}?license={{ request('license') }}', {
+                        method: 'POST',
+                        headers: { 
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    }).then(() => {
+                        let url = new URL(window.location.href);
+                        url.searchParams.set('tab', 'knowledge');
+                        window.location.href = url.toString();
                     });
                 }
             }"
@@ -509,16 +516,30 @@
                         </template>
                     </div>
                     
-                    <div style="width: 100%; background: #f1f5f9; border-radius: 9999px; height: 8px; margin-bottom: 8px; overflow: hidden; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">
-                        <div style="height: 8px; border-radius: 9999px; transition: all 700ms ease-out;"
-                             :style="{ backgroundColor: aiJob.status === 'completed' ? '#22c55e' : (aiJob.status === 'failed' ? '#ef4444' : '#4f46e5'), width: aiJob.progress + '%' }">
+                    <template x-if="aiJob.status === 'completed'">
+                        <div style="margin-top: 16px; margin-bottom: 8px;">
+                            <p style="font-size: 13px; color: #475569; margin-bottom: 12px; line-height: 1.4;">Berhasil menghasilkan <strong style="color: #0f172a;" x-text="aiJob.count + ' pengetahuan bot'"></strong>. Apakah Anda ingin menyimpan hasilnya?</p>
+                            <div style="display: flex; gap: 8px;">
+                                <button @click="acceptJob()" :disabled="isSubmitting" style="flex: 1; padding: 8px 0; background: #10b981; color: white; font-size: 13px; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: opacity 0.2s;" :style="isSubmitting ? 'opacity: 0.6;' : ''">Terima & Simpan</button>
+                                <button @click="rejectJob()" :disabled="isSubmitting" style="flex: 1; padding: 8px 0; background: #f1f5f9; color: #dc2626; font-size: 13px; font-weight: 600; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; transition: opacity 0.2s;" :style="isSubmitting ? 'opacity: 0.6;' : ''">Tolak & Hapus</button>
+                            </div>
                         </div>
-                    </div>
+                    </template>
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
-                        <span x-text="aiJob.status === 'completed' ? 'Menyegarkan halaman...' : (aiJob.status === 'failed' ? 'Terjadi kesalahan saat memproses.' : 'Berjalan di latar belakang')"></span>
-                        <span style="font-weight: 700; color: #334155;" x-text="Math.floor(aiJob.progress) + '%'"></span>
-                    </div>
+                    <template x-if="aiJob.status !== 'completed'">
+                        <div>
+                            <div style="width: 100%; background: #f1f5f9; border-radius: 9999px; height: 8px; margin-bottom: 8px; overflow: hidden; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);">
+                                <div style="height: 8px; border-radius: 9999px; transition: all 700ms ease-out;"
+                                     :style="{ backgroundColor: aiJob.status === 'failed' ? '#ef4444' : '#4f46e5', width: aiJob.progress + '%' }">
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
+                                <span x-text="aiJob.status === 'failed' ? 'Terjadi kesalahan saat memproses.' : 'Berjalan di latar belakang'"></span>
+                                <span style="font-weight: 700; color: #334155;" x-text="Math.floor(aiJob.progress) + '%'"></span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </template>
         </div>
