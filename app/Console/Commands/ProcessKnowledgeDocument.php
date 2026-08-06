@@ -90,6 +90,10 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
                     \Log::info("Ollama chunk {$chunkNum} content length: " . strlen($content));
                     
                     $cleanJson = preg_replace('/```json\s*(.*?)\s*```/is', '$1', $content);
+                    
+                    // Hapus karakter kontrol (seperti raw newline atau tab) yang sering membuat json_decode gagal (Control character error)
+                    $cleanJson = preg_replace('/[\x00-\x1F\x7F]/', ' ', $cleanJson);
+                    
                     $cleanJson = trim($cleanJson);
                     
                     $faqs = json_decode($cleanJson, true);
