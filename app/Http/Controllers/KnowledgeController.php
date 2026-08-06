@@ -117,6 +117,7 @@ class KnowledgeController extends Controller
         }
 
         $text = '';
+        $totalPages = 1;
 
         if ($request->hasFile('document')) {
             $file = $request->file('document');
@@ -127,6 +128,7 @@ class KnowledgeController extends Controller
                 $parser = new PdfParser();
                 $pdf = $parser->parseFile($file->getPathname());
                 $text = $pdf->getText();
+                $totalPages = count($pdf->getPages());
             } elseif ($ext === 'docx') {
                 $zip = new ZipArchive;
                 if ($zip->open($file->getPathname()) === true) {
@@ -139,6 +141,11 @@ class KnowledgeController extends Controller
             }
         } elseif ($request->filled('raw_text')) {
             $text = $request->raw_text;
+        }
+
+        $text = trim($text);
+        if ($totalPages === 1 && strlen($text) > 2000) {
+            $totalPages = ceil(strlen($text) / 2000); // Estimasi kasar halaman untuk DOCX/Teks
         }
 
         $text = trim($text);
@@ -177,7 +184,7 @@ class KnowledgeController extends Controller
 
         // Mencegah Nginx 504 Timeout dengan merespons lebih awal dan membiarkan proses berjalan di background
         if (function_exists('fastcgi_finish_request')) {
-            session()->flash('success', "Sistem AI sedang mengekstrak {$totalChunks} bagian dokumen Anda di latar belakang. Dokumen besar memakan waktu lebih lama. Anda dapat menutup halaman ini dan kembali nanti.");
+            session()->flash('success', "Sistem AI sedang mengekstrak ~{$totalPages} halaman dokumen Anda di latar belakang. Dokumen besar memakan waktu lebih lama. Anda dapat menutup halaman ini dan kembali nanti.");
             session()->save();
             
             header("Location: " . url()->previous(), true, 302);
