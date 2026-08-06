@@ -197,10 +197,14 @@ class KnowledgeController extends Controller
         try {
             foreach ($chunks as $chunkIndex => $chunk) {
                 $chunkNum = $chunkIndex + 1;
-                
                 // Simpan progress aktual ke cache agar frontend bisa menampilkannya dengan akurat
+                $currentPage = round(($chunkNum / $totalChunks) * $totalPages);
                 $progressPercentage = round(($chunkNum / $totalChunks) * 100);
-                \Illuminate\Support\Facades\Cache::put('ai_job_progress_' . $clientId, $progressPercentage, 7200);
+                \Illuminate\Support\Facades\Cache::put('ai_job_progress_' . $clientId, [
+                    'percentage' => $progressPercentage,
+                    'current_page' => $currentPage,
+                    'total_pages' => $totalPages
+                ], 7200);
 
                 \Log::info("Processing chunk {$chunkNum}/{$totalChunks} (length: " . strlen($chunk) . " chars)");
 
@@ -300,7 +304,18 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         $clientId = $client ? $client->id : 1;
         $status = \Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId);
         $count = \Illuminate\Support\Facades\Cache::get('ai_job_count_' . $clientId, 0);
-        $progress = \Illuminate\Support\Facades\Cache::get('ai_job_progress_' . $clientId, 0);
+        $progressCache = \Illuminate\Support\Facades\Cache::get('ai_job_progress_' . $clientId);
+        
+        $progress = 0;
+        $currentPage = 0;
+        $totalPages = 0;
+        if (is_array($progressCache)) {
+            $progress = $progressCache['percentage'] ?? 0;
+            $currentPage = $progressCache['current_page'] ?? 0;
+            $totalPages = $progressCache['total_pages'] ?? 0;
+        } elseif (is_numeric($progressCache)) {
+            $progress = $progressCache;
+        }
         
         // Hapus cache hanya jika failed (completed tetap disimpan untuk validasi terima/tolak)
         if ($status === 'failed') {
@@ -308,7 +323,13 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
             \Illuminate\Support\Facades\Cache::forget('ai_job_progress_' . $clientId);
         }
         
-        return response()->json(['status' => $status, 'count' => $count, 'progress' => $progress]);
+        return response()->json([
+            'status' => $status, 
+            'count' => $count, 
+            'progress' => $progress,
+            'current_page' => $currentPage,
+            'total_pages' => $totalPages
+        ]);
     }
 
     public function jobCancel(Request $request)

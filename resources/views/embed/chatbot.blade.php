@@ -370,7 +370,7 @@
         </style>
         <!-- Floating AI Progress Toast (Global - Outside Tabs) -->
         <div x-data="{
-                aiJob: { status: null, progress: 0, count: 0 },
+                aiJob: { status: null, progress: 0, count: 0, currentPage: 0, totalPages: 0 },
                 pollInterval: null,
                 showCancelModal: false,
                 isSubmitting: false,
@@ -384,6 +384,8 @@
                                 if (data.status === 'processing') {
                                     if (data.progress && data.progress > 0) {
                                         this.aiJob.progress = data.progress;
+                                        this.aiJob.currentPage = data.current_page || 0;
+                                        this.aiJob.totalPages = data.total_pages || 0;
                                     } else {
                                         if (this.aiJob.progress < 99) { this.aiJob.progress += (99 - this.aiJob.progress) * 0.03; }
                                     }
@@ -539,7 +541,7 @@
                             </div>
                             
                             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;">
-                                <span x-text="aiJob.status === 'failed' ? 'Terjadi kesalahan saat memproses.' : 'Berjalan di latar belakang'"></span>
+                                <span x-text="aiJob.status === 'failed' ? 'Terjadi kesalahan saat memproses.' : (aiJob.currentPage ? 'Memproses ' + aiJob.currentPage + ' dari ~' + aiJob.totalPages + ' halaman' : 'Berjalan di latar belakang')"></span>
                                 <span style="font-weight: 700; color: #334155;" x-text="Math.floor(aiJob.progress) + '%'"></span>
                             </div>
                         </div>
