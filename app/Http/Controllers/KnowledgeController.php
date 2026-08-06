@@ -84,17 +84,29 @@ class KnowledgeController extends Controller
 
     public function generate(Request $request)
     {
-        set_time_limit(900); // 5 minutes max execution time
-        $request->validate([
-            'document' => 'nullable|file|mimes:pdf,docx|max:5120',
-            'raw_text' => 'nullable|string',
-        ]);
+        set_time_limit(900);
+
+        // Deteksi jika PHP sudah menolak upload sebelum Laravel sempat memproses
+        if ($request->isMethod('post') && empty($_FILES) && empty($_POST) && $_SERVER['CONTENT_LENGTH'] > 0) {
+            $maxSize = ini_get('upload_max_filesize');
+            return back()->with('error', "File terlalu besar! Server hanya mengizinkan upload maksimal {$maxSize}. Silakan kompres file Anda terlebih dahulu.");
+        }
+
+        try {
+            $request->validate([
+                'document' => 'nullable|file|mimes:pdf,docx|max:20480',
+                'raw_text' => 'nullable|string',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->with('error', 'Validasi gagal: ' . implode(', ', $e->validator->errors()->all()));
+        }
 
         $text = '';
 
         if ($request->hasFile('document')) {
             $file = $request->file('document');
             $ext = $file->getClientOriginalExtension();
+            \Log::info('Upload file: ' . $file->getClientOriginalName() . ', size: ' . round($file->getSize() / 1024 / 1024, 2) . 'MB, ext: ' . $ext);
 
             if ($ext === 'pdf') {
                 $parser = new PdfParser();
@@ -115,12 +127,14 @@ class KnowledgeController extends Controller
         }
 
         $text = trim($text);
+        \Log::info('Extracted text length: ' . strlen($text) . ' chars from document');
 
         if (empty($text)) {
-            return back()->with('error', 'Teks atau dokumen kosong, tidak dapat digenerate.');
+            return back()->with('error', 'Teks atau dokumen kosong, tidak dapat digenerate. Pastikan file PDF Anda mengandung teks (bukan scan/gambar).');
         }
 
-        // Prompt Ollama
+        // Prompt Ollama — ambil 8000 karakter pertama untuk menghindari overload model kecil
+        $textForAI = substr($text, 0, 8000);
         $prompt = "Anda adalah AI Asisten Pembuat Standar Operasional (SOP) dan Knowledge Base untuk Chatbot Customer Service.
 Tugas Anda adalah merangkum teks berikut menjadi JSON murni yang terstruktur.
 
@@ -132,7 +146,7 @@ Ekstrak HANYA informasi terpenting dan kembalikan array JSON berisi object denga
 Hasilkan 3-5 topik utama yang paling relevan.
 PENTING: Seluruh \"topic\", \"keywords\", dan \"response\" WAJIB menggunakan Bahasa Indonesia yang baik dan benar.
 PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
-Teks: " . substr($text, 0, 8000);
+Teks: " . $textForAI;
 
         $ollamaUrl = env('OLLAMA_URL', 'http://127.0.0.1:11434/api/chat'); // Fallback to localhost if host is missing
         $model = env('OLLAMA_MODEL', 'gemma2:2b');
