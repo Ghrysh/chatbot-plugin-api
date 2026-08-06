@@ -184,19 +184,12 @@ class KnowledgeController extends Controller
         set_time_limit(0);
         ignore_user_abort(true);
 
-        // Mencegah Nginx 504 Timeout dengan merespons lebih awal dan membiarkan proses berjalan di background
-        if (function_exists('fastcgi_finish_request')) {
-            session()->flash('success', "Sistem AI sedang mengekstrak ~{$totalPages} halaman dokumen Anda di latar belakang. Dokumen besar memakan waktu lebih lama. Anda dapat menutup halaman ini dan kembali nanti.");
-            session()->save();
-            
-            header("Location: " . url()->previous(), true, 302);
-            fastcgi_finish_request();
-        }
+        // Jalankan ekstraksi AI secara asinkron di belakang layar setelah response dikembalikan ke user
+        app()->terminating(function () use ($chunks, $totalChunks, $totalPages, $clientId, $ollamaUrl, $model) {
+            $totalAdded = 0;
+            $batchIds = [];
 
-        $totalAdded = 0;
-        $batchIds = [];
-
-        try {
+            try {
             foreach ($chunks as $chunkIndex => $chunk) {
                 $chunkNum = $chunkIndex + 1;
                 // Simpan progress aktual ke cache agar frontend bisa menampilkannya dengan akurat
@@ -297,18 +290,14 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
                 \Log::error("All chunks processed but no valid data extracted.");
                 \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
             }
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-            \Log::error('Ollama Error: ' . $e->getMessage());
-        }
-        
-        // Karena kita sudah memanggil fastcgi_finish_request dan mengirim header manual, 
-        // kita harus menghentikan script di sini agar Laravel tidak mencoba mengirim Response lagi di akhir proses
-        if (function_exists('fastcgi_finish_request')) {
-            exit;
-        }
-        
-        return back()->with('success', 'Proses ekstraksi telah selesai.');
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
+                \Log::error('Ollama Error: ' . $e->getMessage());
+            }
+        });
+
+        // Kembalikan response redirect ke pengguna seketika, agar notifikasi sukses muncul di layar
+        return back()->with('success', "Sistem AI sedang mengekstrak ~{$totalPages} halaman dokumen Anda di latar belakang. Dokumen besar memakan waktu lebih lama. Anda dapat menutup halaman ini dan kembali nanti.");
     }
 
     public function jobStatus(Request $request)
