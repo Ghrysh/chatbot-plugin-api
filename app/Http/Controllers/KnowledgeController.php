@@ -214,25 +214,31 @@ class KnowledgeController extends Controller
                     return;
                 }
 
-                $prompt = "Anda adalah AI Asisten Pembuat Knowledge Base untuk Chatbot Customer Service.
-Tugas Anda adalah merangkum teks berikut menjadi JSON murni yang terstruktur.
+                $prompt = "Tugas Anda adalah merangkum teks berikut HANYA DALAM FORMAT JSON ARRAY. JANGAN berikan teks pengantar atau penutup apa pun.
 
-Ekstrak HANYA informasi terpenting dan kembalikan array JSON berisi object dengan struktur berikut:
-- \"topic\": (string, Kategori/Topik. Contoh: 'Akun & Login', 'Layanan')
-- \"keywords\": (array of string, hasilkan 5-8 kata kunci atau pertanyaan terkait)
-- \"response\": (string, BALASAN BOT. Rangkai ulang intisari teks menjadi jawaban yang jelas, ramah, dan solutif. Maksimal 3-4 kalimat padat.)
+STRUKTUR WAJIB JSON (Hasilkan sebanyak mungkin object dalam array):
+[
+  {
+    \"topic\": \"Judul/Kategori Topik\",
+    \"keywords\": [\"kata kunci 1\", \"kata kunci 2\", \"pertanyaan terkait\"],
+    \"response\": \"Jawaban atau penjelasan rinci yang ramah dan solutif (maks 3 kalimat).\"
+  }
+]
 
-Hasilkan SEBANYAK MUNGKIN topik yang relevan dari teks ini (minimal 3 jika memungkinkan).
-PENTING: Seluruh \"topic\", \"keywords\", dan \"response\" WAJIB menggunakan Bahasa Indonesia yang baik dan benar.
-PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
+ATURAN:
+1. Ekstrak sebanyak mungkin topik yang relevan dari teks.
+2. Seluruh teks harus dalam Bahasa Indonesia.
+3. OUTPUT HARUS VALID JSON ARRAY! Jangan berikan markdown ```json.
+
 Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
 
                 $response = Http::timeout(1800)->post($ollamaUrl, [
                     'model' => $model,
                     'messages' => [
-                        ['role' => 'system', 'content' => 'Return ONLY valid JSON array. Always respond in Bahasa Indonesia.'],
+                        ['role' => 'system', 'content' => 'You are a Knowledge Base Extraction AI. You MUST reply ONLY with a valid JSON array of objects. Do not wrap in markdown tags.'],
                         ['role' => 'user', 'content' => $prompt]
                     ],
+                    'format' => 'json',
                     'options' => [
                         'num_thread' => 1
                     ],
