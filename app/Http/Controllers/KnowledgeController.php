@@ -89,7 +89,7 @@ class KnowledgeController extends Controller
         // Deteksi jika PHP sudah menolak upload sebelum Laravel sempat memproses
         if ($request->isMethod('post') && empty($_FILES) && empty($_POST) && $_SERVER['CONTENT_LENGTH'] > 0) {
             $maxSize = ini_get('upload_max_filesize');
-            return back()->with('error', "File terlalu besar! Server hanya mengizinkan upload maksimal {$maxSize}. Silakan kompres file Anda terlebih dahulu.");
+            return back()->with('error', "File terlalu besar! Hanya mengizinkan upload maksimal {$maxSize}. Silakan kompres file Anda terlebih dahulu.");
         }
 
         try {
@@ -133,25 +133,18 @@ class KnowledgeController extends Controller
             return back()->with('error', 'Teks atau dokumen kosong, tidak dapat digenerate. Pastikan file PDF Anda mengandung teks (bukan scan/gambar).');
         }
 
-        // Prompt Ollama — ambil 8000 karakter pertama untuk menghindari overload model kecil
-        $textForAI = substr($text, 0, 8000);
-        $prompt = "Anda adalah AI Asisten Pembuat Standar Operasional (SOP) dan Knowledge Base untuk Chatbot Customer Service.
-Tugas Anda adalah merangkum teks berikut menjadi JSON murni yang terstruktur.
+        // Membagi teks menjadi potongan-potongan (chunks) agar dokumen besar bisa diproses seluruhnya
+        $chunkSize = 6000; // ~3-4 halaman per chunk
+        $chunks = [];
+        $textLength = strlen($text);
+        for ($i = 0; $i < $textLength; $i += $chunkSize) {
+            $chunks[] = substr($text, $i, $chunkSize);
+        }
+        $totalChunks = count($chunks);
+        \Log::info("Document split into {$totalChunks} chunks (text length: {$textLength} chars)");
 
-Ekstrak HANYA informasi terpenting dan kembalikan array JSON berisi object dengan struktur berikut:
-- \"topic\": (string, Kategori/Topik. Contoh: 'Akun & Login', 'Layanan')
-- \"keywords\": (array of string, hasilkan 5-8 kata kunci atau pertanyaan terkait. Contoh: ['lupa password', 'sandi', 'tidak bisa masuk'])
-- \"response\": (string, BALASAN BOT. Rangkai ulang intisari teks menjadi jawaban yang jelas, ramah, dan solutif. Maksimal 3-4 kalimat padat.)
-
-Hasilkan 3-5 topik utama yang paling relevan.
-PENTING: Seluruh \"topic\", \"keywords\", dan \"response\" WAJIB menggunakan Bahasa Indonesia yang baik dan benar.
-PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
-Teks: " . $textForAI;
-
-        $ollamaUrl = env('OLLAMA_URL', 'http://127.0.0.1:11434/api/chat'); // Fallback to localhost if host is missing
+        $ollamaUrl = env('OLLAMA_URL', 'http://127.0.0.1:11434/api/chat');
         $model = env('OLLAMA_MODEL', 'gemma2:2b');
-
-        \Log::info("Starting Ollama request to {$ollamaUrl} with model {$model}. Prompt length: " . strlen($prompt));
 
         $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
         $clientId = $client ? $client->id : 1;
@@ -161,7 +154,7 @@ Teks: " . $textForAI;
             return back()->with('error', 'Sistem AI saat ini sedang memproses dokumen Anda. Harap tunggu hingga selesai sebelum memulai tugas baru.');
         }
         
-        \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'processing', 3600);
+        \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'processing', 7200);
 
         // Mencegah PHP menghentikan script di tengah jalan
         set_time_limit(0);
@@ -169,80 +162,98 @@ Teks: " . $textForAI;
 
         // Mencegah Nginx 504 Timeout dengan merespons lebih awal dan membiarkan proses berjalan di background
         if (function_exists('fastcgi_finish_request')) {
-            session()->flash('success', 'Sistem AI sedang mengekstrak dokumen Anda di latar belakang. Proses ini memakan waktu 5-10 menit. Anda dapat menutup halaman ini dan kembali nanti, hasilnya akan otomatis ditambahkan ke daftar.');
+            session()->flash('success', "Sistem AI sedang mengekstrak {$totalChunks} bagian dokumen Anda di latar belakang. Dokumen besar memakan waktu lebih lama. Anda dapat menutup halaman ini dan kembali nanti.");
             session()->save();
             
-            // Redirect user back immediately to prevent white screen
             header("Location: " . url()->previous(), true, 302);
             fastcgi_finish_request();
         }
 
+        $totalAdded = 0;
+
         try {
-            // Membatasi penggunaan CPU Ollama agar tidak membuat server VPS hang (ERR_TIMED_OUT)
-            $response = Http::timeout(1800)->post($ollamaUrl, [
-                'model' => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => 'Return ONLY valid JSON array.'],
-                    ['role' => 'user', 'content' => $prompt]
-                ],
-                'options' => [
-                    'num_thread' => 1
-                ],
-                'stream' => false,
-            ]);
+            foreach ($chunks as $chunkIndex => $chunk) {
+                $chunkNum = $chunkIndex + 1;
+                \Log::info("Processing chunk {$chunkNum}/{$totalChunks} (length: " . strlen($chunk) . " chars)");
 
-            \Log::info("Ollama responded with status: " . $response->status());
-
-            if ($response->successful()) {
-                $content = $response->json('message.content');
-                \Log::info("Ollama success! Content length: " . strlen($content));
-                
-                // Clean markdown from response
-                $cleanJson = preg_replace('/```json\s*(.*?)\s*```/is', '$1', $content);
-                $cleanJson = trim($cleanJson);
-                
-                \Log::info("Ollama cleaned JSON (first 500 chars): " . substr($cleanJson, 0, 500));
-                
-                $faqs = json_decode($cleanJson, true);
-
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-                    \Log::error('Ollama JSON Error: ' . json_last_error_msg() . ' Raw (first 1000 chars): ' . substr($content, 0, 1000));
-                    return;
-                }
-
+                // Cek apakah user sudah membatalkan
                 if (\Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId) === 'cancelled') {
-                    \Log::info("Ollama AI job cancelled by user.");
+                    \Log::info("AI job cancelled by user at chunk {$chunkNum}/{$totalChunks}.");
                     return;
                 }
 
-                \Log::info("Ollama parsed FAQs count: " . (is_array($faqs) ? count($faqs) : 'NOT_ARRAY'));
+                $prompt = "Anda adalah AI Asisten Pembuat Knowledge Base untuk Chatbot Customer Service.
+Tugas Anda adalah merangkum teks berikut menjadi JSON murni yang terstruktur.
 
-                if (is_array($faqs) && count($faqs) > 0) {
-                    $added = 0;
-                    foreach ($faqs as $idx => $faq) {
-                        if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
-                            ChatbotKnowledge::create([
-                                'client_id' => $clientId,
-                                'topic' => $faq['topic'] ?? 'Umum',
-                                'keywords' => is_array($faq['keywords']) ? $faq['keywords'] : explode(',', $faq['keywords']),
-                                'response' => $faq['response']
-                            ]);
-                            $added++;
-                        } else {
-                            \Log::warning("Ollama FAQ item #$idx missing required keys. Keys present: " . implode(', ', array_keys($faq)));
-                        }
+Ekstrak HANYA informasi terpenting dan kembalikan array JSON berisi object dengan struktur berikut:
+- \"topic\": (string, Kategori/Topik. Contoh: 'Akun & Login', 'Layanan')
+- \"keywords\": (array of string, hasilkan 5-8 kata kunci atau pertanyaan terkait)
+- \"response\": (string, BALASAN BOT. Rangkai ulang intisari teks menjadi jawaban yang jelas, ramah, dan solutif. Maksimal 3-4 kalimat padat.)
+
+Hasilkan SEBANYAK MUNGKIN topik yang relevan dari teks ini (minimal 3 jika memungkinkan).
+PENTING: Seluruh \"topic\", \"keywords\", dan \"response\" WAJIB menggunakan Bahasa Indonesia yang baik dan benar.
+PENTING: Hanya kembalikan array JSON valid, tanpa markdown, tanpa teks awalan/akhiran.
+Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
+
+                $response = Http::timeout(1800)->post($ollamaUrl, [
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'Return ONLY valid JSON array. Always respond in Bahasa Indonesia.'],
+                        ['role' => 'user', 'content' => $prompt]
+                    ],
+                    'options' => [
+                        'num_thread' => 1
+                    ],
+                    'stream' => false,
+                ]);
+
+                \Log::info("Ollama chunk {$chunkNum}/{$totalChunks} responded with status: " . $response->status());
+
+                if ($response->successful()) {
+                    $content = $response->json('message.content');
+                    \Log::info("Ollama chunk {$chunkNum} content length: " . strlen($content));
+                    
+                    $cleanJson = preg_replace('/```json\s*(.*?)\s*```/is', '$1', $content);
+                    $cleanJson = trim($cleanJson);
+                    
+                    $faqs = json_decode($cleanJson, true);
+
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        \Log::warning("Ollama chunk {$chunkNum} JSON Error: " . json_last_error_msg() . ' — skipping chunk');
+                        continue; // Lewati chunk ini, lanjutkan ke chunk berikutnya
                     }
 
-                    \Log::info("Ollama AI job completed. Added $added knowledge items for client $clientId.");
-                    \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
+                    if (is_array($faqs) && count($faqs) > 0) {
+                        foreach ($faqs as $idx => $faq) {
+                            if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
+                                ChatbotKnowledge::create([
+                                    'client_id' => $clientId,
+                                    'topic' => $faq['topic'] ?? 'Umum',
+                                    'keywords' => is_array($faq['keywords']) ? $faq['keywords'] : explode(',', $faq['keywords']),
+                                    'response' => $faq['response']
+                                ]);
+                                $totalAdded++;
+                            } else {
+                                \Log::warning("Chunk {$chunkNum} FAQ item #{$idx} missing keys: " . implode(', ', array_keys($faq)));
+                            }
+                        }
+                        \Log::info("Chunk {$chunkNum} done. Added " . count($faqs) . " items. Running total: {$totalAdded}");
+                    } else {
+                        \Log::warning("Chunk {$chunkNum} returned empty/non-array data.");
+                    }
                 } else {
-                    \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-                    \Log::error('Ollama returned empty or non-array data. Type: ' . gettype($faqs) . ' Raw (first 500 chars): ' . substr($cleanJson, 0, 500));
+                    \Log::error("Ollama chunk {$chunkNum} HTTP error: " . $response->status());
+                    // Lanjutkan ke chunk berikutnya, jangan hentikan seluruh proses
+                    continue;
                 }
+            }
+
+            if ($totalAdded > 0) {
+                \Log::info("All chunks processed. Total added: {$totalAdded} knowledge items for client {$clientId}.");
+                \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
             } else {
+                \Log::error("All chunks processed but no valid data extracted.");
                 \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-                \Log::error('Ollama HTTP error. Status: ' . $response->status() . ' Body: ' . substr($response->body(), 0, 500));
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
