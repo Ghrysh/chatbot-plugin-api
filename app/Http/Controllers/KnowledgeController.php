@@ -156,11 +156,13 @@ class KnowledgeController extends Controller
         }
 
         // Membagi teks menjadi potongan-potongan (chunks) agar dokumen besar bisa diproses seluruhnya
+        // Gunakan mb_ (multibyte) string functions agar karakter UTF-8 tidak terpotong di tengah jalan
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
         $chunkSize = 6000; // ~3-4 halaman per chunk
         $chunks = [];
-        $textLength = strlen($text);
+        $textLength = mb_strlen($text, 'UTF-8');
         for ($i = 0; $i < $textLength; $i += $chunkSize) {
-            $chunks[] = substr($text, $i, $chunkSize);
+            $chunks[] = mb_substr($text, $i, $chunkSize, 'UTF-8');
         }
         $totalChunks = count($chunks);
         \Log::info("Document split into {$totalChunks} chunks (text length: {$textLength} chars)");
