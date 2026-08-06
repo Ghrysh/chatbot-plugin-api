@@ -184,117 +184,24 @@ class KnowledgeController extends Controller
         set_time_limit(0);
         ignore_user_abort(true);
 
-        // Jalankan ekstraksi AI secara asinkron di belakang layar setelah response dikembalikan ke user
-        app()->terminating(function () use ($chunks, $totalChunks, $totalPages, $clientId, $ollamaUrl, $model) {
-            $totalAdded = 0;
-            $batchIds = [];
+        // Simpan parameter yang dibutuhkan ke file JSON sementara untuk dibaca oleh perintah Artisan
+        $tmpFileName = 'ai_job_' . $clientId . '_' . time() . '.json';
+        $tmpFilePath = storage_path('app/' . $tmpFileName);
+        
+        $jobData = [
+            'chunks' => $chunks,
+            'totalChunks' => $totalChunks,
+            'totalPages' => $totalPages,
+            'ollamaUrl' => $ollamaUrl,
+            'model' => $model,
+        ];
+        
+        file_put_contents($tmpFilePath, json_encode($jobData));
 
-            try {
-            foreach ($chunks as $chunkIndex => $chunk) {
-                $chunkNum = $chunkIndex + 1;
-                // Simpan progress aktual ke cache agar frontend bisa menampilkannya dengan akurat
-                $currentPage = round(($chunkNum / $totalChunks) * $totalPages);
-                $progressPercentage = round(($chunkNum / $totalChunks) * 100);
-                \Illuminate\Support\Facades\Cache::put('ai_job_progress_' . $clientId, [
-                    'percentage' => $progressPercentage,
-                    'current_page' => $currentPage,
-                    'total_pages' => $totalPages
-                ], 7200);
-
-                \Log::info("Processing chunk {$chunkNum}/{$totalChunks} (length: " . strlen($chunk) . " chars)");
-
-                // Cek apakah user sudah membatalkan
-                if (\Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId) === 'cancelled') {
-                    \Log::info("AI job cancelled by user at chunk {$chunkNum}/{$totalChunks}.");
-                    return;
-                }
-
-                $prompt = "Tugas Anda adalah merangkum teks berikut HANYA DALAM FORMAT JSON ARRAY. JANGAN berikan teks pengantar atau penutup apa pun.
-
-STRUKTUR WAJIB JSON (Hasilkan sebanyak mungkin object dalam array):
-[
-  {
-    \"topic\": \"Judul/Kategori Topik\",
-    \"keywords\": [\"kata kunci 1\", \"kata kunci 2\", \"pertanyaan terkait\"],
-    \"response\": \"Jawaban atau penjelasan rinci yang ramah dan solutif (maks 3 kalimat).\"
-  }
-]
-
-ATURAN:
-1. Ekstrak sebanyak mungkin topik yang relevan dari teks.
-2. Seluruh teks harus dalam Bahasa Indonesia.
-3. OUTPUT HARUS VALID JSON ARRAY! Jangan berikan markdown ```json.
-
-Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
-
-                $response = Http::timeout(1800)->post($ollamaUrl, [
-                    'model' => $model,
-                    'messages' => [
-                        ['role' => 'system', 'content' => 'You are a Knowledge Base Extraction AI. You MUST reply ONLY with a valid JSON array of objects. Do not wrap in markdown tags.'],
-                        ['role' => 'user', 'content' => $prompt]
-                    ],
-                    'options' => [
-                        'num_thread' => 1
-                    ],
-                    'stream' => false,
-                ]);
-
-                \Log::info("Ollama chunk {$chunkNum}/{$totalChunks} responded with status: " . $response->status());
-
-                if ($response->successful()) {
-                    $content = $response->json('message.content');
-                    \Log::info("Ollama chunk {$chunkNum} content length: " . strlen($content));
-                    
-                    $cleanJson = preg_replace('/```json\s*(.*?)\s*```/is', '$1', $content);
-                    $cleanJson = trim($cleanJson);
-                    
-                    $faqs = json_decode($cleanJson, true);
-
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        \Log::warning("Ollama chunk {$chunkNum} JSON Error: " . json_last_error_msg() . ' — skipping chunk');
-                        continue; // Lewati chunk ini, lanjutkan ke chunk berikutnya
-                    }
-
-                    if (is_array($faqs) && count($faqs) > 0) {
-                        foreach ($faqs as $idx => $faq) {
-                            if (isset($faq['topic'], $faq['keywords'], $faq['response'])) {
-                                $item = ChatbotKnowledge::create([
-                                    'client_id' => $clientId,
-                                    'topic' => $faq['topic'] ?? 'Umum',
-                                    'keywords' => is_array($faq['keywords']) ? $faq['keywords'] : explode(',', $faq['keywords']),
-                                    'response' => $faq['response']
-                                ]);
-                                $batchIds[] = $item->id;
-                                $totalAdded++;
-                            } else {
-                                \Log::warning("Chunk {$chunkNum} FAQ item #{$idx} missing keys: " . implode(', ', array_keys($faq)));
-                            }
-                        }
-                        \Log::info("Chunk {$chunkNum} done. Added " . count($faqs) . " items. Running total: {$totalAdded}");
-                    } else {
-                        \Log::warning("Chunk {$chunkNum} returned empty/non-array data.");
-                    }
-                } else {
-                    \Log::error("Ollama chunk {$chunkNum} HTTP error: " . $response->status());
-                    // Lanjutkan ke chunk berikutnya, jangan hentikan seluruh proses
-                    continue;
-                }
-            }
-
-            if ($totalAdded > 0) {
-                \Log::info("All chunks processed. Total added: {$totalAdded} knowledge items for client {$clientId}.");
-                \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'completed', 3600);
-                \Illuminate\Support\Facades\Cache::put('ai_job_batch_' . $clientId, $batchIds, 3600);
-                \Illuminate\Support\Facades\Cache::put('ai_job_count_' . $clientId, $totalAdded, 3600);
-            } else {
-                \Log::error("All chunks processed but no valid data extracted.");
-                \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-            }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'failed', 3600);
-                \Log::error('Ollama Error: ' . $e->getMessage());
-            }
-        });
+        // Eksekusi proses AI sebagai *Command Line Process* yang sepenuhnya terpisah (detached)
+        // Ini mencegah PHP-FPM pool dari kelaparan (exhaustion) yang menyebabkan server/web hang
+        $artisanPath = base_path('artisan');
+        exec("nohup php {$artisanPath} ai:process-knowledge {$clientId} \"{$tmpFilePath}\" > /dev/null 2>&1 &");
 
         // Kembalikan response redirect ke pengguna seketika, agar notifikasi sukses muncul di layar
         return back()->with('success', "Sistem AI sedang mengekstrak ~{$totalPages} halaman dokumen Anda di latar belakang. Dokumen besar memakan waktu lebih lama. Anda dapat menutup halaman ini dan kembali nanti.");
