@@ -238,7 +238,6 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
                         ['role' => 'system', 'content' => 'You are a Knowledge Base Extraction AI. You MUST reply ONLY with a valid JSON array of objects. Do not wrap in markdown tags.'],
                         ['role' => 'user', 'content' => $prompt]
                     ],
-                    'format' => 'json',
                     'options' => [
                         'num_thread' => 1
                     ],
@@ -301,7 +300,13 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
             \Log::error('Ollama Error: ' . $e->getMessage());
         }
         
-        return;
+        // Karena kita sudah memanggil fastcgi_finish_request dan mengirim header manual, 
+        // kita harus menghentikan script di sini agar Laravel tidak mencoba mengirim Response lagi di akhir proses
+        if (function_exists('fastcgi_finish_request')) {
+            exit;
+        }
+        
+        return back()->with('success', 'Proses ekstraksi telah selesai.');
     }
 
     public function jobStatus(Request $request)
