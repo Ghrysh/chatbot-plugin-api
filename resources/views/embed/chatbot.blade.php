@@ -127,12 +127,35 @@
         </div>
 
         <!-- CHATBOT: KNOWLEDGE BASE SUBTAB -->
-        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, showDeleteModal: false, deleteUrl: '', autoGenTab: 'file', isGenerating: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
+        <div x-show="botTab === 'knowledge'" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ showKnowModal: false, showAutoGenerateModal: false, showDeleteModal: false, showDeleteAllModal: false, deleteUrl: '', autoGenTab: 'file', isGenerating: false, isEdit: false, form: { id: '', topic: '', keywords: '', response: '' } }">
             <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <h3 class="text-sm font-bold text-slate-700">Daftar Pengetahuan Bot</h3>
                 <div class="flex gap-2">
+                    @if($knowledgeBases->count() > 0)
+                    <button @click="showDeleteAllModal = true" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-2 rounded-lg text-xs font-bold transition-colors">Hapus Semua</button>
+                    @endif
                     <button @click="showAutoGenerateModal = true" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">Auto Generate (AI)</button>
                     <button @click="isEdit = false; form = {id:'', topic:'Umum', keywords:'', response:''}; showKnowModal = true" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors">+ Tambah Respon</button>
+                </div>
+            </div>
+
+            <!-- Modal Konfirmasi Hapus Semua -->
+            <div x-show="showDeleteAllModal" style="display: none;" class="fixed inset-0 z-[250] flex items-center justify-center p-4">
+                <div x-show="showDeleteAllModal" x-transition.opacity class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showDeleteAllModal = false"></div>
+                <div x-show="showDeleteAllModal" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden p-6 text-center" style="max-width: 420px;">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                        <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-2">Hapus Semua Pengetahuan?</h3>
+                    <p class="text-sm text-slate-500 mb-6">Tindakan ini akan menghapus <strong class="text-red-600">{{ $knowledgeBases->count() }} pengetahuan</strong> bot secara permanen. Data tidak dapat dikembalikan.</p>
+                    <div class="flex gap-3">
+                        <button @click="showDeleteAllModal = false" class="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors">Batal</button>
+                        <form method="POST" action="{{ route('knowledge.destroy-all', ['license' => request('license')]) }}" class="flex-1">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="w-full px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">Ya, Hapus Semua</button>
+                        </form>
+                    </div>
                 </div>
             </div>
             

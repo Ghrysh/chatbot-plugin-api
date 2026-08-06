@@ -82,6 +82,21 @@ class KnowledgeController extends Controller
         return redirect($url)->with('success', 'Knowledge base deleted successfully.');
     }
 
+    public function destroyAll(Request $request)
+    {
+        $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
+        $clientId = $client ? $client->id : 1;
+        
+        $count = ChatbotKnowledge::where('client_id', $clientId)->count();
+        ChatbotKnowledge::where('client_id', $clientId)->delete();
+
+        $url = url()->previous();
+        if (!str_contains($url, 'tab=')) {
+            $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'tab=knowledge';
+        }
+        return redirect($url)->with('success', "Berhasil menghapus {$count} pengetahuan bot.");
+    }
+
     public function generate(Request $request)
     {
         set_time_limit(900);
