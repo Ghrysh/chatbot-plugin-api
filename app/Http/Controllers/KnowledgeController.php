@@ -197,6 +197,11 @@ class KnowledgeController extends Controller
         try {
             foreach ($chunks as $chunkIndex => $chunk) {
                 $chunkNum = $chunkIndex + 1;
+                
+                // Simpan progress aktual ke cache agar frontend bisa menampilkannya dengan akurat
+                $progressPercentage = round(($chunkNum / $totalChunks) * 100);
+                \Illuminate\Support\Facades\Cache::put('ai_job_progress_' . $clientId, $progressPercentage, 7200);
+
                 \Log::info("Processing chunk {$chunkNum}/{$totalChunks} (length: " . strlen($chunk) . " chars)");
 
                 // Cek apakah user sudah membatalkan
@@ -295,13 +300,15 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         $clientId = $client ? $client->id : 1;
         $status = \Illuminate\Support\Facades\Cache::get('ai_job_client_' . $clientId);
         $count = \Illuminate\Support\Facades\Cache::get('ai_job_count_' . $clientId, 0);
+        $progress = \Illuminate\Support\Facades\Cache::get('ai_job_progress_' . $clientId, 0);
         
         // Hapus cache hanya jika failed (completed tetap disimpan untuk validasi terima/tolak)
         if ($status === 'failed') {
             \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
+            \Illuminate\Support\Facades\Cache::forget('ai_job_progress_' . $clientId);
         }
         
-        return response()->json(['status' => $status, 'count' => $count]);
+        return response()->json(['status' => $status, 'count' => $count, 'progress' => $progress]);
     }
 
     public function jobCancel(Request $request)
@@ -309,6 +316,7 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         $client = $request->has('license') ? \App\Models\Client::where('license_key', $request->license)->first() : \App\Models\Client::first();
         $clientId = $client ? $client->id : 1;
         \Illuminate\Support\Facades\Cache::put('ai_job_client_' . $clientId, 'cancelled', 3600);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_progress_' . $clientId);
         return response()->json(['success' => true]);
     }
 
@@ -322,6 +330,7 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
         \Illuminate\Support\Facades\Cache::forget('ai_job_batch_' . $clientId);
         \Illuminate\Support\Facades\Cache::forget('ai_job_count_' . $clientId);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_progress_' . $clientId);
         
         return response()->json(['success' => true, 'message' => "Berhasil menambahkan {$count} pengetahuan baru."]);
     }
@@ -342,6 +351,7 @@ Teks (bagian {$chunkNum} dari {$totalChunks}): " . $chunk;
         \Illuminate\Support\Facades\Cache::forget('ai_job_client_' . $clientId);
         \Illuminate\Support\Facades\Cache::forget('ai_job_batch_' . $clientId);
         \Illuminate\Support\Facades\Cache::forget('ai_job_count_' . $clientId);
+        \Illuminate\Support\Facades\Cache::forget('ai_job_progress_' . $clientId);
         
         return response()->json(['success' => true, 'message' => "Hasil generate ({$count} item) telah ditolak dan dihapus."]);
     }

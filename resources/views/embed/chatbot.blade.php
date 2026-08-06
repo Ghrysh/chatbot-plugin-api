@@ -382,7 +382,11 @@
                                 this.aiJob.status = data.status;
                                 this.aiJob.count = data.count || 0;
                                 if (data.status === 'processing') {
-                                    if (this.aiJob.progress < 99) { this.aiJob.progress += (99 - this.aiJob.progress) * 0.03; }
+                                    if (data.progress && data.progress > 0) {
+                                        this.aiJob.progress = data.progress;
+                                    } else {
+                                        if (this.aiJob.progress < 99) { this.aiJob.progress += (99 - this.aiJob.progress) * 0.03; }
+                                    }
                                 } else if (data.status === 'completed') {
                                     this.aiJob.progress = 100;
                                     clearInterval(this.pollInterval);
