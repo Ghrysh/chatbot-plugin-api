@@ -48,9 +48,31 @@ services:
                 - '${DB_USERNAME}'
             retries: 3
             timeout: 5s
+    whatsapp-server:
+        image: 'node:20-slim'
+        working_dir: /app
+        command: >
+            sh -c "apt-get update && apt-get install -y chromium && npm install && npm start"
+        ports:
+            - '${WA_SERVER_PORT:-3100}:3100'
+        environment:
+            WA_SERVER_PORT: 3100
+            LARAVEL_API_URL: 'http://laravel.test'
+            WEBHOOK_SECRET: '${WA_WEBHOOK_SECRET:-futurecloud-wa-secret}'
+            WA_API_KEY: '${WA_API_KEY:-futurecloud-wa-api-key}'
+            PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium'
+        volumes:
+            - './whatsapp-server:/app'
+            - 'wa-sessions:/app/.wwebjs_auth'
+        networks:
+            - sail
+        depends_on:
+            - laravel.test
 networks:
     sail:
         driver: bridge
 volumes:
     sail-pgsql:
+        driver: local
+    wa-sessions:
         driver: local

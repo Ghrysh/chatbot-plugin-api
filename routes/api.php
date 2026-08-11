@@ -33,4 +33,17 @@ Route::prefix('v1')->group(function () {
     Route::post('/chat/live/poll', [ChatbotController::class, 'pollLiveChat']);
     Route::post('/chat/live/send', [ChatbotController::class, 'sendLiveChatMessage']);
 });
+
+// WhatsApp Integration Endpoints
+use App\Http\Controllers\WhatsAppController;
+
+// Internal webhook routes (called by Node.js WA server)
+Route::post('/whatsapp/incoming', [WhatsAppController::class, 'incoming']);
+Route::post('/whatsapp/status', [WhatsAppController::class, 'updateStatus']);
+
+// Frontend-facing routes (called from Client Area)
+Route::post('/whatsapp/connect', [WhatsAppController::class, 'connect']);
+Route::get('/whatsapp/session-status', [WhatsAppController::class, 'sessionStatus']);
+Route::post('/whatsapp/disconnect', [WhatsAppController::class, 'disconnect']);
+
 Route::get('/test_db', function() { return \App\Models\Client::all(); });
