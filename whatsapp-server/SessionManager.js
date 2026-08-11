@@ -98,8 +98,11 @@ class SessionManager {
 
         // Incoming message
         client.on('message', async (msg) => {
-            // Skip group messages and status broadcasts
-            if (msg.from.includes('@g.us') || msg.from === 'status@broadcast') return;
+            // Abaikan pesan dari grup, channel (newsletter), atau status
+            if (msg.from === 'status@broadcast' || msg.from.includes('@g.us') || msg.from.includes('@newsletter') || msg.from.includes('@lid')) {
+                return;
+            }
+
             // Skip messages from self
             if (msg.fromMe) return;
 
