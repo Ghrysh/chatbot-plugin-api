@@ -162,3 +162,19 @@ app.listen(PORT, () => {
         }
     }
 });
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('Shutting down WhatsApp Server...');
+    for (const [clientId, session] of manager.sessions.entries()) {
+        if (session.client) {
+            try {
+                console.log(`Closing browser for client ${clientId}...`);
+                await session.client.destroy();
+            } catch (e) {
+                // Ignore
+            }
+        }
+    }
+    process.exit(0);
+});
