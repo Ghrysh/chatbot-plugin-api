@@ -7,6 +7,8 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 class SessionManager {
     constructor(config) {
@@ -205,6 +207,17 @@ class SessionManager {
             }
         }
         this.sessions.delete(clientId);
+        
+        // Ensure folder is permanently deleted so next connect requires QR
+        const authPath = path.join(process.cwd(), '.wwebjs_auth', `session-client_${clientId}`);
+        if (fs.existsSync(authPath)) {
+            try {
+                fs.rmSync(authPath, { recursive: true, force: true });
+            } catch (e) {
+                console.error(`[Client ${clientId}] Error deleting session folder:`, e.message);
+            }
+        }
+        
         console.log(`[Client ${clientId}] Session destroyed`);
 
         await this._notifyLaravel(clientId, 'disconnected', { reason: 'manual_disconnect' });
