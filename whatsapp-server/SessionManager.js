@@ -28,6 +28,7 @@ class SessionManager {
      * Start or restart a session for a given client.
      */
     async startSession(clientId) {
+        clientId = String(clientId);
         // If session already exists, destroy it first
         if (this.sessions.has(clientId)) {
             await this.destroySession(clientId);
@@ -153,6 +154,7 @@ class SessionManager {
      * Get session status info (safe to send to frontend).
      */
     getSessionStatus(clientId) {
+        clientId = String(clientId);
         const session = this.sessions.get(clientId);
         if (!session) {
             return { status: 'not_started', qr: null, info: null };
@@ -169,25 +171,36 @@ class SessionManager {
     }
 
     /**
-     * Destroy a session.
+     * Stop and destroy a session completely
      */
     async destroySession(clientId) {
-        const session = this.sessions.get(clientId);
-        if (!session) return;
-
-        try {
-            if (session.client) {
-                await session.client.logout();
-                await session.client.destroy();
-            }
-        } catch (err) {
-            console.error(`[Client ${clientId}] Destroy error:`, err.message);
-            // Force destroy
+        clientId = String(clientId);
+        const sessionData = this.sessions.get(clientId);
+        if (sessionData && sessionData.client) {
             try {
-                if (session.client) await session.client.destroy();
-            } catch (e) { /* ignore */ }
+                await sessionData.client.destroy();
+            } catch (e) {
+                console.error(`[Client ${clientId}] Destroy error:`, e.message);
+            }
         }
+        this.sessions.delete(clientId);
+        console.log(`[Client ${clientId}] Session destroyed`);
+    }
 
+    /**
+     * Stop session gracefully (logout)
+     */
+    async stopSession(clientId) {
+        clientId = String(clientId);
+        const sessionData = this.sessions.get(clientId);
+        if (sessionData && sessionData.client) {
+            try {
+                await sessionData.client.logout();
+                await sessionData.client.destroy();
+            } catch (err) {
+                console.error(`[Client ${clientId}] Logout/Destroy error:`, err.message);
+            }
+        }
         this.sessions.delete(clientId);
         console.log(`[Client ${clientId}] Session destroyed`);
 
