@@ -138,10 +138,27 @@ app.get('/health', (req, res) => {
 });
 
 // ============================================================
-// START SERVER
+// START SERVER & AUTO RESTORE
 // ============================================================
+
+const fs = require('fs');
+const path = require('path');
+
 app.listen(PORT, () => {
     console.log(`🟢 WhatsApp Server running on port ${PORT}`);
     console.log(`   Laravel API: ${LARAVEL_API_URL}`);
     console.log(`   Active sessions: ${manager.sessions.size}`);
+
+    // Auto-restore existing sessions
+    const authDir = path.join(__dirname, '.wwebjs_auth');
+    if (fs.existsSync(authDir)) {
+        const folders = fs.readdirSync(authDir);
+        for (const folder of folders) {
+            if (folder.startsWith('session-client_')) {
+                const clientId = folder.replace('session-client_', '');
+                console.log(`Auto-restoring session for client ${clientId} from disk...`);
+                manager.startSession(clientId);
+            }
+        }
+    }
 });
