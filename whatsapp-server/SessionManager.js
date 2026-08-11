@@ -99,7 +99,7 @@ class SessionManager {
         // Incoming message
         client.on('message', async (msg) => {
             // Abaikan pesan dari grup, channel (newsletter), atau status
-            if (msg.from === 'status@broadcast' || msg.from.includes('@g.us') || msg.from.includes('@newsletter') || msg.from.includes('@lid')) {
+            if (msg.from === 'status@broadcast' || msg.from.includes('@g.us') || msg.from.includes('@newsletter')) {
                 return;
             }
 
