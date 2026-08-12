@@ -46,4 +46,12 @@ Route::post('/whatsapp/connect', [WhatsAppController::class, 'connect']);
 Route::get('/whatsapp/session-status', [WhatsAppController::class, 'sessionStatus']);
 Route::post('/whatsapp/disconnect', [WhatsAppController::class, 'disconnect']);
 
+// Helpdesk API Endpoints (called from futurecloud helpdesk dashboard)
+use App\Http\Controllers\HelpdeskApiController;
+
+Route::get('/helpdesk/poll', [HelpdeskApiController::class, 'poll']);
+Route::post('/helpdesk/claim', [HelpdeskApiController::class, 'claim']);
+Route::post('/helpdesk/send', [HelpdeskApiController::class, 'send']);
+Route::post('/helpdesk/end', [HelpdeskApiController::class, 'endChat']);
+
 Route::get('/test_db', function() { return \App\Models\Client::all(); });

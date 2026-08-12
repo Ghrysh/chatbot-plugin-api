@@ -56,6 +56,10 @@ class LiveChatAdminController extends Controller
         $history = json_decode($lead->chat_history, true) ?? [];
 
         if ($request->action === 'accept') {
+            if ($lead->helpdesk_id !== null && $lead->live_chat_status === 'active') {
+                return response()->json(['success' => false, 'error' => "Chat ini sedang ditangani oleh Helpdesk: {$lead->helpdesk_name}"], 409);
+            }
+
             $lead->live_chat_status = 'active';
             $history[] = [
                 'sender' => 'system',

@@ -68,7 +68,8 @@
                                         <h4 class="font-bold text-sm text-slate-800 truncate" x-text="lead.user ? lead.user.name : 'Guest'"></h4>
                                         <span class="text-[9px] text-slate-400 font-mono" x-text="'#'+lead.id"></span>
                                     </div>
-                                    <p class="text-xs text-slate-500 truncate" x-text="lead.topic_context"></p>
+                                    <p class="text-xs text-slate-500 truncate" x-show="!lead.helpdesk_name" x-text="lead.topic_context"></p>
+                                    <p class="text-[10px] text-orange-600 font-medium truncate" x-show="lead.helpdesk_name" x-text="'Dilayani oleh ' + lead.helpdesk_name"></p>
                                 </div>
                             </div>
                         </template>
@@ -132,10 +133,14 @@
                         </template>
                     </div>
                     
-                    <form x-show="currentChat.live_chat_status === 'active'" @submit.prevent="sendMessage()" class="p-3 bg-white border-t border-slate-100 flex gap-2">
+                    <form x-show="currentChat.live_chat_status === 'active' && !currentChat.helpdesk_id" @submit.prevent="sendMessage()" class="p-3 bg-white border-t border-slate-100 flex gap-2">
                         <input type="text" x-model="inputText" placeholder="Ketik balasan CS di sini..." class="flex-1 px-4 py-2.5 bg-slate-100 border-transparent rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all">
                         <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors">Kirim</button>
                     </form>
+                    
+                    <div x-show="currentChat.live_chat_status === 'active' && currentChat.helpdesk_id" class="p-3 bg-slate-50 border-t border-slate-100 text-center text-xs text-orange-600 font-medium">
+                        Percakapan ini sedang ditangani oleh Helpdesk (<span x-text="currentChat.helpdesk_name"></span>). Anda hanya dapat memantau.
+                    </div>
                 </div>
             </template>
         </div>

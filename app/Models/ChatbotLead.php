@@ -21,6 +21,8 @@ class ChatbotLead extends Model
         'last_message',
         'live_chat_status',
         'admin_id',
+        'helpdesk_id',
+        'helpdesk_name',
         'status'
     ];
 
