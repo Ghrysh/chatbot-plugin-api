@@ -99,6 +99,19 @@ class ChatbotController extends Controller
             $lead->update(['chat_history' => json_encode($request->chat_history ?? []), 'last_message' => $originalMessage]);
         }
 
+        // Helper: simpan user message + bot reply ke chat_history DB
+        $saveReplyToHistory = function($reply) use ($lead, $originalMessage) {
+            $history = json_decode($lead->chat_history, true) ?? [];
+            // Tambahkan user message jika belum ada (hindari duplikat)
+            $lastMsg = end($history);
+            if (!$lastMsg || $lastMsg['text'] !== $originalMessage || $lastMsg['sender'] !== 'user') {
+                $history[] = ['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')];
+            }
+            // Tambahkan bot reply
+            $history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];
+            $lead->update(['chat_history' => json_encode($history)]);
+        };
+
         if ($request->is_followup) {
             $lead->update(['contact_info' => $originalMessage]);
             return response()->json([
@@ -112,16 +125,20 @@ class ChatbotController extends Controller
         // =========================================================================
         
         if (preg_match('/\b(halo|hallo|hai|p|ping|pagi|siang|sore|malam|test|tes)\b/i', $cleanMessage) && str_word_count($cleanMessage) <= 4) {
+            $botReply = 'Halo Kak! 👋 Ada yang bisa kami bantu?';
+            $saveReplyToHistory($botReply);
             return response()->json([
-                'reply' => 'Halo Kak! 👋 Ada yang bisa kami bantu?',
+                'reply' => $botReply,
                 'lead_id' => $lead->id,
                 'show_live_chat_btn' => false
             ]);
         }
 
         if (preg_match('/\b(makasih|terima kasih|terimakasih|thanks|thx|thank you|oke|ok|sip|baik|baiklah)\b/i', $cleanMessage) && str_word_count($cleanMessage) <= 5) {
+            $botReply = 'Sama-sama Kak! 😊 Apakah ada hal lain yang bisa dibantu?';
+            $saveReplyToHistory($botReply);
             return response()->json([
-                'reply' => 'Sama-sama Kak! 😊 Apakah ada hal lain yang bisa dibantu?',
+                'reply' => $botReply,
                 'lead_id' => $lead->id,
                 'show_live_chat_btn' => false
             ]);
@@ -239,6 +256,8 @@ class ChatbotController extends Controller
         if (preg_match('/(live chat|agen manusia|cs|customer service|admin)/i', $reply)) {
             $showLiveChatBtn = true;
         }
+
+        $saveReplyToHistory($reply);
 
         return response()->json([
             'reply' => $reply,
