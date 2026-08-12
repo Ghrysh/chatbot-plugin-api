@@ -4,7 +4,7 @@
  */
 
 (function () {
-    console.error("[Chatbot Widget] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.0.2 - Auto Polling On Load)");
+    console.error("[Chatbot Widget] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.0.3 - Restore Chatbot Mode)");
     // Hindari duplikasi injeksi
     if (document.getElementById('fc-widget-container')) return;
 
@@ -508,6 +508,10 @@
                         this.isLiveChat = true;
                         this.showLiveChatBtn = false;
                         console.log("[Chatbot Widget] Chat is ACTIVE. Hiding Live Chat button.");
+                    } else if(data.status === 'none' && this.isLiveChat) {
+                        this.isLiveChat = false;
+                        this.showLiveChatBtn = true;
+                        console.log("[Chatbot Widget] Chat reverted to NONE. Restoring Chatbot mode.");
                     }
                     if(data.status === 'ended') {
                         this.isLiveChat = false; 

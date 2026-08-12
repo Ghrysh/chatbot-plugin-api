@@ -181,7 +181,7 @@ class HelpdeskApiController extends Controller
         ];
 
         $lead->update([
-            'live_chat_status' => 'ended',
+            'live_chat_status' => 'none',
             'helpdesk_id' => null,
             'helpdesk_name' => null,
             'chat_history' => json_encode($history),
