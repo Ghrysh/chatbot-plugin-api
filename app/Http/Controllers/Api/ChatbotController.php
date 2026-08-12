@@ -82,7 +82,7 @@ class ChatbotController extends Controller
         if ($request->is_autoclose) {
             if ($lead) {
                 $contactInfo = 'Diakhiri Otomatis';
-                $lead->update(['contact_info' => $contactInfo, 'chat_history' => json_encode($request->chat_history)]);
+                $lead->update(['contact_info' => $contactInfo]);
             }
             return response()->json(['success' => true]);
         }
@@ -93,20 +93,25 @@ class ChatbotController extends Controller
                 'session_id' => $sessionId,
                 'user_id' => null, // plugins typically don't share user table
                 'ip_address' => $realIp, 'topic_context' => $topic,
-                'contact_info' => '-', 'chat_history' => json_encode($request->chat_history ?? []), 'last_message' => $originalMessage
+                'contact_info' => '-', 
+                'chat_history' => json_encode([['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')]]), 
+                'last_message' => $originalMessage
             ]);
         } else {
-            $lead->update(['chat_history' => json_encode($request->chat_history ?? []), 'last_message' => $originalMessage]);
+            $currentHistory = json_decode($lead->chat_history, true) ?? [];
+            $lastMsg = end($currentHistory);
+            if (!$lastMsg || $lastMsg['text'] !== $originalMessage || $lastMsg['sender'] !== 'user') {
+                $currentHistory[] = ['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')];
+            }
+            $lead->update([
+                'chat_history' => json_encode($currentHistory), 
+                'last_message' => $originalMessage
+            ]);
         }
 
         // Helper: simpan user message + bot reply ke chat_history DB
         $saveReplyToHistory = function($reply) use ($lead, $originalMessage) {
             $history = json_decode($lead->chat_history, true) ?? [];
-            // Tambahkan user message jika belum ada (hindari duplikat)
-            $lastMsg = end($history);
-            if (!$lastMsg || $lastMsg['text'] !== $originalMessage || $lastMsg['sender'] !== 'user') {
-                $history[] = ['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')];
-            }
             // Tambahkan bot reply
             $history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];
             $lead->update(['chat_history' => json_encode($history)]);
@@ -293,14 +298,19 @@ class ChatbotController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $lead = ChatbotLead::where('client_id', $client->id)->find($request->lead_id);
+        $lead = ChatbotLead::where('client_id', $client->id)->findOrFail($request->lead_id);
         
-        if ($lead) {
-            $history = json_decode($lead->chat_history, true) ?? [];
-            $history[] = ['sender' => 'user', 'text' => $request->message, 'time' => now()->format('d M, H:i')];
-            $lead->update(['chat_history' => json_encode($history)]);
-        }
+        $history = json_decode($lead->chat_history, true) ?? [];
+        $history[] = [
+            'sender' => 'user',
+            'text' => $request->message,
+            'time' => now()->format('d M, H:i')
+        ];
         
+        $lead->chat_history = json_encode($history);
+        $lead->last_message = $request->message;
+        $lead->save();
+
         return response()->json(['success' => true]);
     }
 
