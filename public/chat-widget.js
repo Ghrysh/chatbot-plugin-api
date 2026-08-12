@@ -400,7 +400,8 @@
 
                     if(data.lead_id) {
                         this.leadId = data.lead_id;
-                        if (!this.livePollInterval) this.startLivePolling();
+                        // Unconditionally start polling so that Helpdesk responses are caught instantly
+                        this.startLivePolling();
                     }
 
                     setTimeout(() => {
@@ -445,14 +446,20 @@
                     });
                     let data = await res.json();
                     
-                    if (data.lead_id) {
+                    if(data.reply) {
+                        this.messages.push({ sender: 'bot', text: data.reply, time: timeNow });
+                        this.scrollToBottom();
+                    }
+                    if(data.show_live_chat_btn) {
+                        this.showLiveChatBtn = true;
+                    }
+                    if(data.lead_id) {
                         this.leadId = data.lead_id;
                         this.saveState();
+                        this.startLivePolling();
                     }
-
-                    this.startLivePolling();
-                } catch(e) {
-                    this.messages.push({ sender: 'bot', text: 'Gagal menghubungkan. Pastikan koneksi internet Anda stabil.' });
+                } catch (e) {
+                    this.messages.push({ sender: 'bot', text: 'Gagal terhubung ke server. Silakan coba lagi.' });
                 }
             },
 
@@ -470,20 +477,34 @@
                         this.liveChatStatus = data.status;
                         if(data.admin_name) this.liveAdminName = data.admin_name;
                         
-                        if(data.status === 'active') this.isLiveChat = true;
+                        if(data.status === 'active') {
+                            this.isLiveChat = true;
+                            this.showLiveChatBtn = false;
+                        }
+                        
                         if(data.status === 'ended') {
-                            this.isLiveChat = false; 
-                            clearInterval(this.livePollInterval);
-                            this.livePollInterval = null;
-                            this.messages.push({ sender: 'bot', text: 'Sesi Live Chat telah ditutup.' });
+                            this.isLiveChat = false;
                             this.isFinished = true;
-                            this.saveState();
-                            this.scrollToBottom();
+                            this.showLiveChatBtn = false;
+                            if(this.livePollInterval) {
+                                clearInterval(this.livePollInterval);
+                                this.livePollInterval = null;
+                            }
                         }
                         
                         if(data.history && data.history.length > 0) {
-                            if (JSON.stringify(data.history) !== JSON.stringify(this.messages)) {
-                                this.messages = data.history;
+                            let dbLastMsg = data.history[data.history.length - 1];
+                            let widgetLastMsg = this.messages[this.messages.length - 1];
+                            
+                            if (data.history.length > this.messages.length || 
+                                (dbLastMsg && widgetLastMsg && (dbLastMsg.text !== widgetLastMsg.text || dbLastMsg.sender !== widgetLastMsg.sender))) {
+                                
+                                if (this.messages.length > 0 && this.messages[0].text.includes('Selamat datang')) {
+                                    this.messages = [this.messages[0], ...data.history];
+                                } else {
+                                    this.messages = data.history;
+                                }
+                                
                                 this.playNotification();
                                 if (!this.isOpen) this.unread++;
                                 this.scrollToBottom();
