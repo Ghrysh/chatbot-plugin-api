@@ -262,8 +262,13 @@
 
             async triggerAutoClose() {
                 this.isFinished = true;
-                this.followUpMode = false;
                 this.messages.push({ sender: 'bot', text: 'Sesi chat telah diakhiri otomatis oleh sistem karena tidak ada aktivitas.' });
+                this.triggerFollowUp();
+                clearInterval(this.activityTimer);
+                if(this.livePollInterval) {
+                    clearInterval(this.livePollInterval);
+                    this.livePollInterval = null;
+                }
                 this.saveState();
                 this.scrollToBottom();
                 
@@ -321,7 +326,10 @@
                 this.showLiveChatBtn = false;
                 this.updateActivity();
                 this.sendWelcome();
-                if(this.livePollInterval) clearInterval(this.livePollInterval);
+                if(this.livePollInterval) {
+                    clearInterval(this.livePollInterval);
+                    this.livePollInterval = null;
+                }
                 this.liveChatStatus = 'none';
             },
 
@@ -466,6 +474,7 @@
                         if(data.status === 'ended') {
                             this.isLiveChat = false; 
                             clearInterval(this.livePollInterval);
+                            this.livePollInterval = null;
                             this.messages.push({ sender: 'bot', text: 'Sesi Live Chat telah ditutup.' });
                             this.isFinished = true;
                             this.saveState();
