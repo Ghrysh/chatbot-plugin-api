@@ -195,7 +195,7 @@
                     this.liveChatStatus = data.liveChatStatus || 'none';
                     
                     if (this.isOpen) this.scrollToBottom();
-                    if (this.liveChatStatus === 'pending' || this.liveChatStatus === 'active') this.startLivePolling();
+                    if (this.leadId && !this.isFinished) this.startLivePolling();
                 } else {
                     this.unread = 1;
                     this.lastActivity = Date.now();
@@ -325,6 +325,7 @@
                 if (this.isOpen) {
                     this.unread = 0;
                     this.updateActivity();
+                    if (this.leadId && !this.isFinished && !this.livePollInterval) this.startLivePolling();
                 }
                 this.saveState();
                 this.scrollToBottom();
@@ -384,7 +385,10 @@
                     });
                     let data = await res.json();
 
-                    if(data.lead_id) this.leadId = data.lead_id;
+                    if(data.lead_id) {
+                        this.leadId = data.lead_id;
+                        if (!this.livePollInterval) this.startLivePolling();
+                    }
 
                     setTimeout(() => {
                         this.isTyping = false;
@@ -466,6 +470,7 @@
                             if (JSON.stringify(data.history) !== JSON.stringify(this.messages)) {
                                 this.messages = data.history;
                                 this.playNotification();
+                                if (!this.isOpen) this.unread++;
                                 this.scrollToBottom();
                                 this.saveState();
                             }
