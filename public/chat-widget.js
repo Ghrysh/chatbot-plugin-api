@@ -448,8 +448,9 @@
                 this.livePollInterval = setInterval(async () => {
                     if(!this.leadId) return;
                     try {
-                        let res = await fetch(`${SAAS_URL}/chatbot/live/poll/${this.leadId}`, {
-                            headers: { 'Accept': 'application/json' }
+                        let res = await fetch(`${SAAS_URL}/chatbot/live/poll/${this.leadId}?t=${Date.now()}`, {
+                            headers: { 'Accept': 'application/json' },
+                            cache: 'no-store'
                         });
                         let data = await res.json();
                         
