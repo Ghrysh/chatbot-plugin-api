@@ -400,6 +400,7 @@
 
                     if(data.lead_id) {
                         this.leadId = data.lead_id;
+                        console.log("[Chatbot] leadId saved:", this.leadId);
                         // Unconditionally start polling so that Helpdesk responses are caught instantly
                         this.startLivePolling();
                     }
@@ -464,8 +465,10 @@
             },
 
             startLivePolling() {
+                console.log("[Chatbot] startLivePolling called. livePollInterval exists:", !!this.livePollInterval);
                 if(this.livePollInterval) clearInterval(this.livePollInterval);
                 this.livePollInterval = setInterval(async () => {
+                    console.log("[Chatbot] Polling tick executed. leadId:", this.leadId);
                     if(!this.leadId) return;
                     try {
                         let res = await fetch(`${SAAS_URL}/chatbot/live/poll/${this.leadId}?t=${Date.now()}`, {
@@ -473,13 +476,15 @@
                             cache: 'no-store'
                         });
                         let data = await res.json();
+                        console.log("[Chatbot] Polling response:", data);
                         
                         this.liveChatStatus = data.status;
                         if(data.admin_name) this.liveAdminName = data.admin_name;
                         
                         if(data.status === 'active') {
                             this.isLiveChat = true;
-                            this.showLiveChatBtn = false;
+                            this.showLiveChatBtn = false; // Force hide button when helpdesk takes over
+                            console.log("[Chatbot] Chat is ACTIVE. Hiding Live Chat button.");
                         }
                         
                         if(data.status === 'ended') {
@@ -491,13 +496,15 @@
                                 this.livePollInterval = null;
                             }
                         }
-                        
-                        if(data.history && data.history.length > 0) {
+                                         if(data.history && data.history.length > 0) {
                             let dbLastMsg = data.history[data.history.length - 1];
                             let widgetLastMsg = this.messages[this.messages.length - 1];
                             
-                            if (data.history.length > this.messages.length || 
-                                (dbLastMsg && widgetLastMsg && (dbLastMsg.text !== widgetLastMsg.text || dbLastMsg.sender !== widgetLastMsg.sender))) {
+                            let lengthChanged = data.history.length > this.messages.length;
+                            let msgChanged = dbLastMsg && widgetLastMsg && (dbLastMsg.text !== widgetLastMsg.text || dbLastMsg.sender !== widgetLastMsg.sender);
+                            
+                            if (lengthChanged || msgChanged) {
+                                console.log("[Chatbot] History changed. lengthChanged:", lengthChanged, "msgChanged:", msgChanged);
                                 
                                 if (this.messages.length > 0 && this.messages[0].text.includes('Selamat datang')) {
                                     this.messages = [this.messages[0], ...data.history];
@@ -511,7 +518,9 @@
                                 this.saveState();
                             }
                         }
-                    } catch(e) {}
+                    } catch (e) {
+                        console.error("[Chatbot] Polling error:", e);
+                    }
                 }, 3000);
             }
         };
