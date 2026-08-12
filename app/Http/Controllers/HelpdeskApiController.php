@@ -15,13 +15,14 @@ class HelpdeskApiController extends Controller
     }
 
     /**
-     * Poll chats for helpdesk dashboard
+     * Poll ALL chats for helpdesk dashboard
+     * Shows chatbot AI conversations AND live chat
      */
     public function poll(Request $request)
     {
         $client = $this->getClient($request);
         if (!$client) {
-            return response()->json(['pending' => [], 'active' => [], 'ended' => []]);
+            return response()->json(['all_chats' => [], 'active' => [], 'active_others' => [], 'ended' => []]);
         }
 
         $helpdeskId = $request->input('helpdesk_id') ?? $request->query('helpdesk_id');
@@ -30,21 +31,27 @@ class HelpdeskApiController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        // Pending: belum di-claim siapapun
-        $pending = $leads->where('live_chat_status', 'pending')
-            ->whereNull('helpdesk_id')
-            ->values();
+        // ALL CHATS: semua chat yang belum di-handle oleh helpdesk manapun
+        // (masih dihandle oleh bot, atau baru saja masuk live chat pending)
+        $allChats = $leads->filter(function ($lead) {
+            // Tampilkan chat yang:
+            // 1. Belum di-handle helpdesk (helpdesk_id null) DAN belum ended
+            // 2. Atau yang pending live chat
+            return ($lead->helpdesk_id === null && $lead->live_chat_status !== 'ended');
+        })->values();
 
         // Active: yang saya handle
-        $active = $leads->where('live_chat_status', 'active')
-            ->where('helpdesk_id', (int)$helpdeskId)
-            ->values();
+        $active = $leads->filter(function ($lead) use ($helpdeskId) {
+            return $lead->live_chat_status === 'active'
+                && (int)$lead->helpdesk_id === (int)$helpdeskId;
+        })->values();
 
-        // Active milik helpdesk lain (tampilkan dengan info siapa yang handle)
-        $activeOthers = $leads->where('live_chat_status', 'active')
-            ->where('helpdesk_id', '!=', null)
-            ->where('helpdesk_id', '!=', (int)$helpdeskId)
-            ->values();
+        // Active milik helpdesk lain
+        $activeOthers = $leads->filter(function ($lead) use ($helpdeskId) {
+            return $lead->live_chat_status === 'active'
+                && $lead->helpdesk_id !== null
+                && (int)$lead->helpdesk_id !== (int)$helpdeskId;
+        })->values();
 
         // Ended: semua yang sudah selesai (terbatas 20 terakhir)
         $ended = $leads->where('live_chat_status', 'ended')
@@ -52,7 +59,7 @@ class HelpdeskApiController extends Controller
             ->values();
 
         return response()->json([
-            'pending' => $pending,
+            'all_chats' => $allChats,
             'active' => $active,
             'active_others' => $activeOthers,
             'ended' => $ended,
@@ -60,7 +67,8 @@ class HelpdeskApiController extends Controller
     }
 
     /**
-     * Claim a pending chat (anti-double handle)
+     * Claim/Handle a chat (anti-double handle)
+     * This takes over from the bot with an automatic handover message
      */
     public function claim(Request $request)
     {
@@ -85,9 +93,17 @@ class HelpdeskApiController extends Controller
         }
 
         $history = json_decode($lead->chat_history, true) ?? [];
+        
+        // Pesan otomatis dari bot bahwa sesi diserahkan ke tim helpdesk
+        $history[] = [
+            'sender' => 'bot',
+            'text' => "Untuk membantu Anda lebih lanjut, saya serahkan percakapan ini kepada tim kami. {$request->helpdesk_name} akan melanjutkan percakapan ini. Terima kasih atas kesabarannya! 🙏",
+            'time' => now()->format('d M, H:i'),
+        ];
+
         $history[] = [
             'sender' => 'system',
-            'text' => "{$request->helpdesk_name} bergabung dalam obrolan.",
+            'text' => "{$request->helpdesk_name} telah mengambil alih percakapan ini.",
             'time' => now()->format('d M, H:i'),
         ];
 
@@ -160,12 +176,14 @@ class HelpdeskApiController extends Controller
         $history = json_decode($lead->chat_history, true) ?? [];
         $history[] = [
             'sender' => 'system',
-            'text' => "Sesi Live Chat dengan {$request->helpdesk_name} telah berakhir. Anda kembali terhubung dengan Asisten Virtual.",
+            'text' => "Sesi dengan {$request->helpdesk_name} telah berakhir. Anda kembali terhubung dengan Asisten Virtual kami.",
             'time' => now()->format('d M, H:i'),
         ];
 
         $lead->update([
             'live_chat_status' => 'ended',
+            'helpdesk_id' => null,
+            'helpdesk_name' => null,
             'chat_history' => json_encode($history),
         ]);
 
