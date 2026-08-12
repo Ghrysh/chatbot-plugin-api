@@ -244,6 +244,10 @@
             }
             
             this.startActivityMonitor();
+            
+            if (this.leadId && !this.isFinished) {
+                this.startLivePolling();
+            }
         },
 
         saveState() {
