@@ -14,7 +14,12 @@
 
     // 2. Base URL of our SaaS Backend
     // In production, this would be dynamically set or hardcoded to the actual SaaS domain
-    const SAAS_URL = 'http://localhost:8081/api';
+    const currentScript = document.currentScript || (function() {
+        var scripts = document.getElementsByTagName('script');
+        return scripts[scripts.length - 1];
+    })();
+    const scriptHost = currentScript ? new URL(currentScript.src).origin : 'https://api-chatbot.futurecloud.id';
+    const SAAS_URL = scriptHost + '/api';
 
     // 3. Inject HTML
     const widgetHtml = `
