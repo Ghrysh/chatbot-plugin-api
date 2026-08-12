@@ -45,12 +45,16 @@ class ChatbotApiController extends Controller
                 'client_id' => $clientId,
                 'ip_address' => $request->ip(),
                 'topic_context' => 'Umum',
-                'chat_history' => json_encode($history),
+                'chat_history' => json_encode([
+                    ['sender' => 'user', 'text' => $message, 'time' => now()->format('d M, H:i')]
+                ]),
                 'live_chat_status' => 'none',
                 'contact_info' => '-'
             ]);
         } else {
-            $lead->chat_history = json_encode($history);
+            $currentHistory = json_decode($lead->chat_history, true) ?? [];
+            $currentHistory[] = ['sender' => 'user', 'text' => $message, 'time' => now()->format('d M, H:i')];
+            $lead->chat_history = json_encode($currentHistory);
             $lead->save();
         }
 
@@ -95,6 +99,11 @@ class ChatbotApiController extends Controller
         if (!$reply) {
             $reply = "Maaf, Bot belum mengerti pertanyaan Anda. Apakah Anda ingin berbicara langsung dengan tim Support/CS kami?";
             $lead->topic_context = 'Unrecognized: ' . Str::limit($message, 30);
+            
+            $history = json_decode($lead->chat_history, true) ?? [];
+            $history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];
+            $lead->chat_history = json_encode($history);
+            
             $lead->save();
             return response()->json([
                 'reply' => $reply,
@@ -104,6 +113,11 @@ class ChatbotApiController extends Controller
         }
 
         $lead->topic_context = $matchedTopic;
+        
+        $history = json_decode($lead->chat_history, true) ?? [];
+        $history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];
+        $lead->chat_history = json_encode($history);
+        
         $lead->save();
 
         return response()->json([
@@ -147,18 +161,13 @@ class ChatbotApiController extends Controller
         $lead = ChatbotLead::findOrFail($request->input('lead_id'));
         $history = json_decode($lead->chat_history, true) ?? [];
         
-        // Ensure we don't overwrite if client already appended locally, but usually we just replace with what the client sends
-        if ($request->has('chat_history')) {
-            $lead->chat_history = json_encode($request->input('chat_history'));
-        } else {
-            $history[] = [
-                'sender' => 'user',
-                'text' => $request->input('message'),
-                'time' => now()->format('d M, H:i')
-            ];
-            $lead->chat_history = json_encode($history);
-        }
-
+        $history[] = [
+            'sender' => 'user',
+            'text' => $request->input('message'),
+            'time' => now()->format('d M, H:i')
+        ];
+        
+        $lead->chat_history = json_encode($history);
         $lead->save();
 
         return response()->json(['success' => true]);
