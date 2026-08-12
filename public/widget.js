@@ -4,6 +4,7 @@
  */
 
 (function () {
+    console.error("[Chatbot Widget] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.0.1)");
     // Hindari duplikasi injeksi
     if (document.getElementById('fc-widget-container')) return;
 
@@ -419,7 +420,11 @@
                 });
                 let data = await res.json();
 
-                if(data.lead_id) this.leadId = data.lead_id;
+                if(data.lead_id) {
+                    this.leadId = data.lead_id;
+                    console.log("[Chatbot Widget] leadId saved:", this.leadId);
+                    this.startLivePolling();
+                }
 
                 setTimeout(() => {
                     this.isTyping = false;
@@ -475,28 +480,63 @@
         },
 
         startLivePolling() {
+            console.log("[Chatbot Widget] startLivePolling called. interval exists:", !!this.livePollInterval);
             if(this.livePollInterval) clearInterval(this.livePollInterval);
             this.livePollInterval = setInterval(async () => {
                 if(!this.leadId) return;
-                let res = await fetch(\`${API_URL}/chat/live/poll\`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-FutureCloud-License': \`${LICENSE_KEY}\` }, body: JSON.stringify({ lead_id: this.leadId }) });
-                let data = await res.json();
-                
-                this.liveChatStatus = data.status;
-                if(data.admin_name) this.liveAdminName = data.admin_name;
-                
-                if(data.status === 'active') this.isLiveChat = true;
-                if(data.status === 'ended') {
-                    this.isLiveChat = false; 
-                    clearInterval(this.livePollInterval);
-                }
-                
-                if(data.history && data.history.length > 0) {
-                    if (JSON.stringify(data.history) !== JSON.stringify(this.messages)) {
-                        this.messages = data.history;
-                        this.playNotification();
-                        this.scrollToBottom();
-                        this.saveState();
+                try {
+                    let res = await fetch(\`${API_URL}/chat/live/poll?t=\${Date.now()}\`, {
+                        method: 'POST',
+                        headers: { 
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-FutureCloud-License': \`${LICENSE_KEY}\` 
+                        },
+                        body: JSON.stringify({ lead_id: this.leadId }),
+                        cache: 'no-store'
+                    });
+                    let data = await res.json();
+                    
+                    this.liveChatStatus = data.status;
+                    if(data.admin_name) this.liveAdminName = data.admin_name;
+                    
+                    if(data.status === 'active') {
+                        this.isLiveChat = true;
+                        this.showLiveChatBtn = false;
+                        console.log("[Chatbot Widget] Chat is ACTIVE. Hiding Live Chat button.");
                     }
+                    if(data.status === 'ended') {
+                        this.isLiveChat = false; 
+                        this.isFinished = true;
+                        this.showLiveChatBtn = false;
+                        if(this.livePollInterval) {
+                            clearInterval(this.livePollInterval);
+                            this.livePollInterval = null;
+                        }
+                    }
+                    
+                    if(data.history && data.history.length > 0) {
+                        let dbLastMsg = data.history[data.history.length - 1];
+                        let widgetLastMsg = this.messages[this.messages.length - 1];
+                        
+                        let lengthChanged = data.history.length > this.messages.length;
+                        let msgChanged = dbLastMsg && widgetLastMsg && (dbLastMsg.text !== widgetLastMsg.text || dbLastMsg.sender !== widgetLastMsg.sender);
+                        
+                        if (lengthChanged || msgChanged) {
+                            if (this.messages.length > 0 && this.messages[0].text.includes('Selamat datang')) {
+                                this.messages = [this.messages[0], ...data.history];
+                            } else {
+                                this.messages = data.history;
+                            }
+                            
+                            this.playNotification();
+                            if (!this.isOpen) this.unread++;
+                            this.scrollToBottom();
+                            this.saveState();
+                        }
+                    }
+                } catch (e) {
+                    console.error("[Chatbot Widget] Polling error:", e);
                 }
             }, 3000);
         }
