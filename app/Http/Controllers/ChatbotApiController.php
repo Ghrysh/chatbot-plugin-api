@@ -160,6 +160,13 @@ class ChatbotApiController extends Controller
     {
         $lead = ChatbotLead::findOrFail($request->input('lead_id'));
         $history = json_decode($lead->chat_history, true) ?? [];
+        if ($request->input('is_autoclose')) {
+            $lead->live_chat_status = 'ended';
+            $contactInfo = 'Diakhiri Otomatis';
+            $lead->contact_info = $contactInfo;
+            $lead->save();
+            return response()->json(['success' => true]);
+        }
         
         $history[] = [
             'sender' => 'user',
