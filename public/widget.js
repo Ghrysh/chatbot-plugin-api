@@ -4,7 +4,7 @@
  */
 
 (function () {
-    console.error("[Chatbot Widget] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.0.1)");
+    console.error("[Chatbot Widget] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.0.2 - Auto Polling On Load)");
     // Hindari duplikasi injeksi
     if (document.getElementById('fc-widget-container')) return;
 
