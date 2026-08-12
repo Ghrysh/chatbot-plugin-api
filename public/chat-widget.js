@@ -1,4 +1,6 @@
 (function() {
+    console.log("[Chatbot] Script chat-widget.js loaded successfully. Version: 1.0.1 (Polling Fix)");
+    
     // 1. Inject Tailwind & AlpineJS if not present
     if (!window.tailwind) {
         let script = document.createElement('script');
