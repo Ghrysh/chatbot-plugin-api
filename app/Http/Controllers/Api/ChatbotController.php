@@ -156,7 +156,7 @@ class ChatbotController extends Controller
         $showLiveChatBtn = false;
         $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434/api/chat');
 
-        $systemContent = "Kamu adalah asisten virtual (Customer Service) yang ramah dan profesional. Selalu awali dengan sapaan 'Halo Kak'. Jawab dengan bahasa Indonesia yang santai tapi sopan. Jawablah secara singkat, maksimal 2 kalimat.\n\n";
+        $systemContent = "Kamu adalah asisten virtual (Customer Service) yang ramah dan profesional. Selalu awali dengan sapaan 'Halo Kak'. Jawab dengan bahasa Indonesia yang santai tapi sopan. Jawablah secara singkat, maksimal 2-3 kalimat. PENTING: Jangan pernah copy-paste teks mentah. Kamu harus menyusun ulang jawaban dengan gaya bahasamu sendiri yang natural dan ramah, seolah-olah kamu benar-benar seorang CS yang memahami topiknya.\n\n";
 
         // Pencarian Knowledge Base dengan Levenshtein (Plugin version)
         $knowledges = ChatbotKnowledge::where('client_id', $client->id)->get();
@@ -192,7 +192,7 @@ class ChatbotController extends Controller
         }
 
         if ($bestMatch && $highestScore > 2) {
-            $systemContent .= "Berikut adalah INFORMASI (SOP) untuk menjawab pertanyaan user:\n" . $bestMatch->response . "\n\nJawab HANYA berdasarkan informasi di atas. Jika informasi kurang jelas, beritahu user untuk klik tombol Live Chat CS.";
+            $systemContent .= "Berikut adalah REFERENSI/SOP untuk menjawab pertanyaan user:\n" . $bestMatch->response . "\n\nGunakan informasi di atas sebagai panduan/referensi. JANGAN copy-paste teks di atas secara mentah. Susun ulang jawabanmu dengan gaya bahasamu sendiri yang natural, ramah, dan mudah dipahami oleh user. Jika informasi kurang jelas atau user bertanya hal di luar referensi, beritahu user untuk klik tombol Live Chat CS.";
         } else {
             $systemContent .= "Kamu TIDAK TAHU jawaban dari pertanyaan user karena tidak ada di database kamu. Tugasmu adalah meminta maaf dengan sopan, dan wajib mengarahkan user untuk menekan tombol 'Live Chat CS' agar bisa dibantu oleh agen manusia.";
             $showLiveChatBtn = true;
@@ -232,8 +232,8 @@ class ChatbotController extends Controller
                 'messages' => $chatMessages,
                 'stream' => false,
                 'options' => [
-                    'temperature' => 0.1,
-                    'top_p' => 0.8,
+                    'temperature' => 0.3,
+                    'top_p' => 0.85,
                     'repeat_penalty' => 1.2
                 ]
             ]);

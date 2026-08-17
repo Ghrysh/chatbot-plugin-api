@@ -68,6 +68,16 @@ services:
             - sail
         depends_on:
             - laravel.test
+    ollama:
+        image: ollama/ollama:latest
+        container_name: chatbot-plugin-ollama
+        restart: unless-stopped
+        ports:
+            - "11434:11434"
+        volumes:
+            - ollama-data:/root/.ollama
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge
@@ -75,4 +85,6 @@ volumes:
     sail-pgsql:
         driver: local
     wa-sessions:
+        driver: local
+    ollama-data:
         driver: local

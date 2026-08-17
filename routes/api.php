@@ -11,7 +11,7 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 // Client-facing Public API (No CSRF needed since it's an API route)
-Route::post('/chatbot/send', [ChatbotApiController::class, 'sendMessage']);
+Route::post('/chatbot/send', [ChatbotController::class, 'send']);
 Route::post('/chatbot/live/request', [ChatbotApiController::class, 'requestLiveChat']);
 Route::get('/chatbot/live/poll/{lead_id}', [ChatbotApiController::class, 'pollLiveChat']);
 Route::post('/chatbot/live/send', [ChatbotApiController::class, 'sendLiveChatMessage']);
