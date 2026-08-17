@@ -249,7 +249,8 @@ class ChatbotController extends Controller
                 throw new \Exception("LLM Error");
             }
         } catch (\Exception $e) {
-            $reply = isset($bestMatch) ? "Halo Kak! " . $bestMatch->response : "Halo Kak, koneksi AI sedang sibuk. Ada yang bisa dibantu oleh Tim Live Chat kami?";
+            \Log::error("Ollama Error: " . $e->getMessage());
+            $reply = "DEBUG ERROR AI: " . $e->getMessage();
             $showLiveChatBtn = true;
         }
 
