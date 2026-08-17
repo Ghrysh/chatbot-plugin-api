@@ -15,18 +15,14 @@ class ChatbotController extends Controller
     {
         $licenseKey = $request->header('X-FutureCloud-License');
 
-        $client = null;
-        if ($licenseKey) {
-            $client = Client::where('license_key', $licenseKey)->where('status', 'active')->first();
+        if (!$licenseKey) {
+            return response()->json(['error' => 'Missing License Key'], 401);
         }
 
-        // Fallback: jika tidak ada license header (widget lama), ambil client pertama
-        if (!$client) {
-            $client = Client::where('status', 'active')->first();
-        }
+        $client = Client::where('license_key', $licenseKey)->first();
 
-        if (!$client) {
-            return response()->json(['reply' => 'Sistem belum dikonfigurasi.']);
+        if (!$client || $client->status !== 'active') {
+            return response()->json(['error' => 'Invalid or inactive License Key'], 403);
         }
 
         $topic = $request->topic ?? 'Umum'; 
