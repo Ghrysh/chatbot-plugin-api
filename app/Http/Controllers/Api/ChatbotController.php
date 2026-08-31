@@ -404,7 +404,7 @@ class ChatbotController extends Controller
         // 1. Setup connection
         // Auto-detect driver (support MySQL, PgSQL, SQL Server)
         $driver = 'mysql';
-        if (in_array($client->db_port, [5432, 5433])) {
+        if (in_array($client->db_port, [5432, 5433, 6543])) {
             $driver = 'pgsql';
         } elseif ($client->db_port == 1433) {
             $driver = 'sqlsrv';
