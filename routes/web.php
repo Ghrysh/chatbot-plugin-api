@@ -22,6 +22,7 @@ Route::get('/embed/livechat', [DashboardController::class, 'embedLivechat'])
 
 use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LiveChatAdminController;
+use App\Http\Controllers\DatabaseConfigController;
 
 // Web endpoints for Dashboard
 // Route::middleware(['auth', 'verified'])->group(function () {
@@ -34,6 +35,10 @@ use App\Http\Controllers\LiveChatAdminController;
     Route::delete('/knowledge/{id}', [KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
     Route::post('/knowledge/job-accept', [KnowledgeController::class, 'jobAccept'])->name('knowledge.job-accept');
     Route::post('/knowledge/job-reject', [KnowledgeController::class, 'jobReject'])->name('knowledge.job-reject');
+
+    // Database Integration
+    Route::post('/database-config/test-save', [DatabaseConfigController::class, 'testAndSave'])->name('database-config.test-save');
+    Route::post('/database-config/save-tables', [DatabaseConfigController::class, 'saveTables'])->name('database-config.save-tables');
 
     // Live Chat AJAX Endpoints
     Route::get('/livechat/poll', [LiveChatAdminController::class, 'poll'])->name('livechat.poll');

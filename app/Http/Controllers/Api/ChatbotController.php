@@ -156,7 +156,7 @@ class ChatbotController extends Controller
         $showLiveChatBtn = false;
         $ollamaUrl = env('OLLAMA_URL', 'http://ollama:11434/api/chat');
 
-        $systemContent = "Kamu adalah asisten virtual (Customer Service) yang ramah dan profesional. Selalu awali dengan sapaan 'Halo Kak'. Jawab dengan bahasa Indonesia yang santai tapi sopan. Jawablah secara singkat, maksimal 2-3 kalimat. PENTING: Jangan pernah copy-paste teks mentah. Kamu harus menyusun ulang jawaban dengan gaya bahasamu sendiri yang natural dan ramah, seolah-olah kamu benar-benar seorang CS yang memahami topiknya.\n\n";
+        $systemContent = "Kamu adalah asisten virtual (Customer Service) yang ramah. Awali jawaban dengan 'Halo Kak'. Jawab dengan bahasa Indonesia santai dan sopan. Jawablah secara singkat maksimal 2 kalimat.\n\n";
 
         // Pencarian Knowledge Base dengan Levenshtein (Plugin version)
         $knowledges = ChatbotKnowledge::where('client_id', $client->id)->get();
@@ -177,9 +177,17 @@ class ChatbotController extends Controller
                 } else {
                     $kwWords = explode(' ', $kw);
                     foreach($kwWords as $kww) {
+                        if (strlen($kww) < 3) continue; // skip very short words
                         foreach($words as $userWord) {
-                            if (strlen($userWord) > 3 && levenshtein($userWord, $kww) <= 1) {
-                                $score += 2;
+                            if (strlen($userWord) >= 3) {
+                                // Exact match inside word
+                                if (str_contains($userWord, $kww) || str_contains($kww, $userWord)) {
+                                    $score += 3;
+                                }
+                                // Typos
+                                elseif (levenshtein($userWord, $kww) <= 1) {
+                                    $score += 2;
+                                }
                             }
                         }
                     }
@@ -191,11 +199,26 @@ class ChatbotController extends Controller
             }
         }
 
-        if ($bestMatch && $highestScore > 2) {
-            $systemContent .= "Berikut adalah REFERENSI/SOP untuk menjawab pertanyaan user:\n" . $bestMatch->response . "\n\nGunakan informasi di atas sebagai panduan/referensi. JANGAN copy-paste teks di atas secara mentah. Susun ulang jawabanmu dengan gaya bahasamu sendiri yang natural, ramah, dan mudah dipahami oleh user. Jika informasi kurang jelas atau user bertanya hal di luar referensi, beritahu user untuk klik tombol Live Chat CS.";
+        if ($bestMatch && $highestScore >= 3) {
+            $systemContent .= "INFORMASI UNTUK MENJAWAB:\n" . $bestMatch->response . "\n\nATURAN:\n1. WAJIB jawab menggunakan bahasa Indonesia.\n2. Jawab HANYA berdasarkan informasi di atas. JANGAN MENGARANG.";
         } else {
-            $systemContent .= "Kamu TIDAK TAHU jawaban dari pertanyaan user karena tidak ada di database kamu. Tugasmu adalah meminta maaf dengan sopan, dan wajib mengarahkan user untuk menekan tombol 'Live Chat CS' agar bisa dibantu oleh agen manusia.";
-            $showLiveChatBtn = true;
+            $dbDataJson = null;
+            if ($client->db_allow_read && !empty($client->db_allowed_tables)) {
+                $dbDataJson = $this->queryDatabaseWithAi($client, $originalMessage);
+                \Illuminate\Support\Facades\Log::info("DEBUG DB DATA JSON: " . $dbDataJson);
+            }
+
+            if ($dbDataJson && $dbDataJson !== '[]' && stripos($dbDataJson, 'ERROR') !== 0) {
+                 $dbContextForUser = true;
+                 $showLiveChatBtn = false;
+            } else {
+                 // OPTIMIZATION: Skip AI generation completely if we don't have any data! 
+                 // Saves CPU/API costs and guarantees 0% hallucination.
+                 return response()->json([
+                     'reply' => "Halo Kak! Maaf sekali, untuk saat ini aku belum punya informasi terkait hal tersebut.\n\nSilakan klik tombol 'Live Chat CS' di bawah agar Kakak bisa langsung dibantu oleh agen manusia kami ya! 🙏",
+                     'show_live_chat' => true
+                 ]);
+            }
         }
 
         // =========================================================================
@@ -207,49 +230,65 @@ class ChatbotController extends Controller
             'role' => 'system',
             'content' => $systemContent
         ];
-
-        $chatHistoryArr = json_decode($lead->chat_history, true) ?? [];
-        $recentHistory = array_slice($chatHistoryArr, -3); 
-        foreach ($recentHistory as $h) {
+        
+        if ($lead && $lead->chat_history) {
+            $history = json_decode($lead->chat_history, true) ?? [];
+            // Limit history to last 5 messages
+            $history = array_slice($history, -5);
+            foreach($history as $index => $msg) {
+                $role = $msg['sender'] === 'user' ? 'user' : 'assistant';
+                $chatMessages[] = ['role' => $role, 'content' => $msg['text']];
+            }
+        } else {
             $chatMessages[] = [
-                'role' => ($h['sender'] === 'user') ? 'user' : 'assistant',
-                'content' => $h['text']
+                'role' => 'user',
+                'content' => $originalMessage
             ];
         }
 
-        $chatMessages[] = [
-            'role' => 'user',
-            'content' => $originalMessage
-        ];
+        // PUSH DB CONTEXT AS A SEPARATE SYSTEM MESSAGE AT THE VERY END
+        if (isset($dbContextForUser)) {
+            $chatMessages[] = [
+                'role' => 'system',
+                'content' => "=== INFORMASI DATABASE ===\n" . $dbDataJson . "\n\nINSTRUKSI: Jawab pertanyaan user terakhir HANYA berdasarkan data di atas secara natural. Tulis ANGKA PERSIS sesuai aslinya, JANGAN ditambah/dikurang dan JANGAN diubah (misal 50000 jangan diubah jadi 500.000). Jika user meminta daftar/list seluruh item, sebutkan semua data di atas. Jawab secara profesional, singkat, dan DILARANG menggunakan bahasa gaul!"
+            ];
+        }
 
         // =========================================================================
-        // 7. REQUEST KE OLLAMA AI
+        // 7. REQUEST KE OLLAMA / API AI
         // =========================================================================
         $reply = "";
+        $apiUrl = env('AI_API_URL', 'https://api.moonshot.cn/v1/chat/completions');
+        $apiKey = env('AI_API_KEY', '');
         try {
-            $llmResponse = Http::timeout(40)->post($ollamaUrl, [
-                'model' => env('OLLAMA_MODEL', 'gemma2:2b'),
+            $req = Http::timeout(300);
+            if ($apiKey) {
+                $req = $req->withToken($apiKey);
+            }
+            $llmResponse = $req->post($apiUrl, [
+                'model' => env('AI_MODEL', 'moonshot-v1-8k'),
                 'messages' => $chatMessages,
                 'stream' => false,
+                'max_tokens' => 150, // Batasi panjang teks untuk AI lokal
                 'options' => [
-                    'temperature' => 0.3,
+                    'temperature' => 0.1,
                     'top_p' => 0.85,
                     'repeat_penalty' => 1.2
-                ]
+                ] // options mostly for ollama, but harmless for openai (ignored if unsupported)
             ]);
 
             if ($llmResponse->successful()) {
-                $aiText = trim($llmResponse->json('message.content'));
+                $aiText = trim($llmResponse->json('choices.0.message.content') ?? $llmResponse->json('message.content', ''));
                 $aiText = preg_replace('/^(aturan|rules|system|mimin:).*$/im', '', $aiText);
                 $aiText = trim($aiText);
                 if (!empty($aiText)) {
                     $reply = nl2br($aiText);
                 }
             } else {
-                throw new \Exception("LLM Error");
+                throw new \Exception("LLM Error: " . $llmResponse->status());
             }
         } catch (\Exception $e) {
-            \Log::error("Ollama Error: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("AI API Error: " . $e->getMessage());
             $reply = "DEBUG ERROR AI: " . $e->getMessage();
             $showLiveChatBtn = true;
         }
@@ -358,5 +397,136 @@ class ChatbotController extends Controller
             'success' => true,
             'lead_id' => $lead->id
         ]);
+    }
+
+    private function queryDatabaseWithAi(\App\Models\Client $client, string $message)
+    {
+        // 1. Setup connection
+        // Auto-detect driver (support MySQL, PgSQL, SQL Server)
+        $driver = 'mysql';
+        if (in_array($client->db_port, [5432, 5433])) {
+            $driver = 'pgsql';
+        } elseif ($client->db_port == 1433) {
+            $driver = 'sqlsrv';
+        }
+        
+        $config = [
+            'driver' => $driver,
+            'host' => $client->db_host,
+            'port' => $client->db_port,
+            'database' => $client->db_database,
+            'username' => $client->db_username,
+            'password' => $client->db_password,
+        ];
+        
+        if ($driver === 'mysql') {
+            $config['charset'] = 'utf8mb4';
+            $config['collation'] = 'utf8mb4_unicode_ci';
+        } elseif ($driver === 'pgsql') {
+            $config['charset'] = 'utf8';
+        }
+
+        config(['database.connections.client_db_ai' => $config]);
+        
+        \Illuminate\Support\Facades\DB::purge('client_db_ai');
+        
+        // 2. Fetch schema for allowed tables (Agnostic to MySQL/PgSQL/SQLServer)
+        $schemaText = "";
+        try {
+            foreach ($client->db_allowed_tables as $table) {
+                $columns = \Illuminate\Support\Facades\Schema::connection('client_db_ai')->getColumns($table);
+                
+                $colDetails = [];
+                foreach ($columns as $col) {
+                    $colDetails[] = $col['name'] . " (" . $col['type_name'] . ")";
+                }
+                $schemaText .= "Table: $table
+Columns: " . implode(", ", $colDetails) . "
+
+";
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Schema Error: " . $e->getMessage());
+            return "ERROR: Gagal membaca struktur database.";
+        }
+
+        // 3. Ask AI to generate SQL
+        $apiUrl = env('AI_API_URL', 'https://api.moonshot.cn/v1/chat/completions');
+        $model = env('AI_MODEL', 'moonshot-v1-8k');
+        $apiKey = env('AI_API_KEY', '');
+
+        $promptSql = "You are a strict SQL generator. Based on this database schema:
+
+$schemaText
+
+User Question: '$message'
+
+Write ONLY a valid $driver SELECT query. 
+YOU MUST OBEY THESE RULES OR THE SYSTEM WILL CRASH:
+1. Output ONLY the raw SQL. No markdown, no \`\`\`sql.
+2. YOU MUST USE \`SELECT *\`. DO NOT select specific columns like \`SELECT price\`.
+3. If the user asks for ALL items, DO NOT use a WHERE clause. If they ask for a specific item, use \`LOWER(column) LIKE '%keyword%'\`. NEVER use \`=\` for strings.
+
+EXAMPLES (Adapt to the provided schema!):
+User: 'what items do you have / list all items / ada apa saja' -> SELECT * FROM [your_table_name];
+User: 'how much is [specific_item]' -> SELECT * FROM [your_table_name] WHERE LOWER([item_column]) LIKE '%[specific_item]%';";
+
+        $sqlQuery = "";
+        try {
+            $req = \Illuminate\Support\Facades\Http::timeout(300);
+            if ($apiKey) {
+                $req = $req->withToken($apiKey);
+            }
+            $response = $req->post($apiUrl, [
+                'model' => $model,
+                'messages' => [['role' => 'user', 'content' => $promptSql]],
+                'stream' => false,
+                'max_tokens' => 100, // Cegah halusinasi kepanjangan
+                'temperature' => 0.0, // Sangat deterministik
+            ]);
+            
+            if ($response->successful()) {
+                $sqlQuery = trim($response->json('choices.0.message.content') ?? $response->json('message.content', ''));
+                $sqlQuery = str_replace(['```sql', '```mysql', '```'], '', $sqlQuery);
+                $sqlQuery = trim($sqlQuery);
+                \Illuminate\Support\Facades\Log::info("RAW SQL GENERATED: " . $sqlQuery);
+            } else {
+                return "ERROR: LLM API gagal (" . $response->status() . ").";
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("LLM Error: " . $e->getMessage());
+            return "ERROR: Gagal menghubungi AI untuk generate SQL.";
+        }
+
+        // 4. Validasi minimal
+        if (empty($sqlQuery) || stripos($sqlQuery, 'SELECT') !== 0) {
+            return "ERROR: Query bukan SELECT yang valid.";
+        }
+        
+        // 4. Execute SQL
+        try {
+            $results = \Illuminate\Support\Facades\DB::connection('client_db_ai')->select($sqlQuery);
+            $resultsArray = array_map(function($row) { return (array)$row; }, $results);
+            
+            if (empty($resultsArray)) {
+                return "[]";
+            }
+            
+            $textOutput = "";
+            foreach ($resultsArray as $idx => $row) {
+                if ($idx >= 5) {
+                    $textOutput .= "... dan data lainnya.\n";
+                    break;
+                }
+                $rowStrings = [];
+                foreach ($row as $key => $val) {
+                    $rowStrings[] = "$key: $val";
+                }
+                $textOutput .= "- " . implode(', ', $rowStrings) . "\n";
+            }
+            return trim($textOutput);
+        } catch (\Exception $e) {
+            return "ERROR: Gagal menjalankan query database.";
+        }
     }
 }

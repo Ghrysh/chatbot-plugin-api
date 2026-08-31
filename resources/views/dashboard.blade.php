@@ -98,8 +98,9 @@
             
             <div class="mb-6 flex flex-col md:flex-row justify-between md:items-end gap-4">
                 <div class="flex flex-col sm:flex-row bg-slate-100 p-1 rounded-xl w-full md:w-fit gap-1">
-                    <button @click="botTab = 'leads'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'leads' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'">Inbox Follow Up</button>
+                    <button @click="botTab = 'leads'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'leads' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'">Percakapan</button>
                     <button @click="botTab = 'knowledge'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'knowledge' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'">Latih Otak Bot</button>
+                    <button @click="botTab = 'database'" class="w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold transition-all" :class="botTab === 'database' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'">Integrasi Database</button>
                 </div>
             </div>
 
@@ -422,6 +423,86 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- ==================== DATABASE TAB ==================== -->
+        <div x-show="botTab === 'database'" style="display: none;" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6" x-transition.opacity.duration.300ms>
+            <h2 class="text-xl font-bold text-slate-800 mb-4">Integrasi Database Klien</h2>
+            <p class="text-sm text-slate-600 mb-6">Hubungkan database proyek Anda agar AI dapat membaca dan menjawab berdasarkan data real-time (seperti jumlah produk, status pesanan, dsb).</p>
+
+            <form action="{{ route('database-config.test-save') }}" method="POST" class="mb-8 border-b border-slate-200 pb-8">
+                @csrf
+                <div class="mb-4">
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" name="db_allow_read" value="1" class="form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500" {{ (isset($client) && $client->db_allow_read) ? 'checked' : '' }}>
+                        <span class="text-slate-800 font-medium">Izinkan AI membaca database ini</span>
+                    </label>
+                    <p class="text-xs text-green-600 mt-1 ml-8">
+                        <svg class="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        Aman. Sistem memblokir perintah modifikasi data (UPDATE/DELETE/DROP). AI hanya diberikan akses baca (SELECT). Sangat disarankan menggunakan user DB yang Read-Only.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Host</label>
+                        <input type="text" name="db_host" class="w-full border-slate-300 rounded-lg shadow-sm" placeholder="127.0.0.1" value="{{ $client->db_host ?? '' }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Port</label>
+                        <input type="text" name="db_port" class="w-full border-slate-300 rounded-lg shadow-sm" placeholder="3306" value="{{ $client->db_port ?? '3306' }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Database Name</label>
+                        <input type="text" name="db_database" class="w-full border-slate-300 rounded-lg shadow-sm" placeholder="nama_database" value="{{ $client->db_database ?? '' }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                        <input type="text" name="db_username" class="w-full border-slate-300 rounded-lg shadow-sm" placeholder="root" value="{{ $client->db_username ?? '' }}" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                        <input type="password" name="db_password" class="w-full border-slate-300 rounded-lg shadow-sm" placeholder="***" value="{{ $client->db_password ?? '' }}">
+                    </div>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                    Test Koneksi & Ambil Tabel
+                </button>
+            </form>
+
+            @if(session('db_tables_list') || (isset($client) && $client->db_allowed_tables))
+                @php
+                    $availableTables = session('db_tables_list') ?? [];
+                    // Jika tidak ada session db_tables_list (load pertama kali), gunakan allowed_tables sebagai fallback display
+                    if (empty($availableTables) && !empty($client->db_allowed_tables)) {
+                        $availableTables = $client->db_allowed_tables;
+                    }
+                    $allowed = $client->db_allowed_tables ?? [];
+                @endphp
+                
+                @if(count($availableTables) > 0)
+                <div class="mt-6">
+                    <h3 class="text-lg font-bold text-slate-800 mb-3">Pilih Tabel yang Boleh Dibaca AI</h3>
+                    <p class="text-sm text-slate-500 mb-4">Pilih tabel yang mengandung informasi relevan untuk dijawab AI. Hindari memilih tabel yang berisi data sangat rahasia seperti password admin, token, dsb.</p>
+                    
+                    <form action="{{ route('database-config.save-tables') }}" method="POST">
+                        @csrf
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 max-h-[300px] overflow-y-auto p-4 border border-slate-200 rounded-xl bg-slate-50">
+                            @foreach($availableTables as $table)
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50 transition-colors">
+                                    <input type="checkbox" name="allowed_tables[]" value="{{ $table }}" class="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" {{ in_array($table, $allowed) ? 'checked' : '' }}>
+                                    <span class="text-slate-700 font-medium text-sm">{{ $table }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+                            Simpan Tabel yang Diizinkan
+                        </button>
+                    </form>
+                </div>
+                @endif
+            @endif
+        </div>
         </div>
 
         <!-- ==================== LIVE CHAT TAB ==================== -->
