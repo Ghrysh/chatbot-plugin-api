@@ -80,7 +80,15 @@ class LicenseController extends Controller
             'bot_name' => $client ? $client->bot_name : 'Chatbot Ai',
             'bot_color' => $client ? $client->bot_color : '#2563eb',
             'whatsapp_number' => $client ? $client->whatsapp_number : null,
-            'is_active' => $client ? ($client->status === 'active') : false
+            'is_active' => $client ? ($client->status === 'active') : false,
+            // Database Config fields
+            'db_allow_read' => $client ? (bool)$client->db_allow_read : false,
+            'db_host' => $client ? $client->db_host : null,
+            'db_port' => $client ? $client->db_port : null,
+            'db_database' => $client ? $client->db_database : null,
+            'db_username' => $client ? $client->db_username : null,
+            'db_password' => $client ? $client->db_password : null,
+            'db_allowed_tables' => $client ? $client->db_allowed_tables : [],
         ]);
     }
 
@@ -139,6 +147,14 @@ class LicenseController extends Controller
             'bot_name' => 'nullable|string',
             'bot_color' => 'nullable|string',
             'whatsapp_number' => 'nullable|string|max:25',
+            // Validate new db fields
+            'db_allow_read' => 'nullable|boolean',
+            'db_host' => 'nullable|string',
+            'db_port' => 'nullable|string',
+            'db_database' => 'nullable|string',
+            'db_username' => 'nullable|string',
+            'db_password' => 'nullable|string',
+            'db_allowed_tables' => 'nullable|array',
         ]);
         
         $client = Client::where('license_key', $request->license_key)->first();
@@ -147,6 +163,13 @@ class LicenseController extends Controller
                 'bot_name' => $request->bot_name,
                 'bot_color' => $request->bot_color,
                 'whatsapp_number' => $request->whatsapp_number,
+                'db_allow_read' => $request->boolean('db_allow_read'),
+                'db_host' => $request->db_host,
+                'db_port' => $request->db_port,
+                'db_database' => $request->db_database,
+                'db_username' => $request->db_username,
+                'db_password' => $request->db_password,
+                'db_allowed_tables' => $request->db_allowed_tables ?? [],
             ]);
             return response()->json(['message' => 'Config updated']);
         }
