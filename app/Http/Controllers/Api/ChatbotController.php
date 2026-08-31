@@ -258,7 +258,7 @@ class ChatbotController extends Controller
         // 7. REQUEST KE OLLAMA / API AI
         // =========================================================================
         $reply = "";
-        $apiUrl = env('AI_API_URL', 'https://api.moonshot.cn/v1/chat/completions');
+        $apiUrl = env('AI_API_URL', env('OLLAMA_URL', 'https://api.moonshot.cn/v1/chat/completions'));
         $apiKey = env('AI_API_KEY', '');
         try {
             $req = Http::timeout(300);
@@ -266,7 +266,7 @@ class ChatbotController extends Controller
                 $req = $req->withToken($apiKey);
             }
             $llmResponse = $req->post($apiUrl, [
-                'model' => env('AI_MODEL', 'moonshot-v1-8k'),
+                'model' => env('AI_MODEL', env('OLLAMA_MODEL', 'moonshot-v1-8k')),
                 'messages' => $chatMessages,
                 'stream' => false,
                 'max_tokens' => 150, // Batasi panjang teks untuk AI lokal
@@ -451,8 +451,8 @@ Columns: " . implode(", ", $colDetails) . "
         }
 
         // 3. Ask AI to generate SQL
-        $apiUrl = env('AI_API_URL', 'https://api.moonshot.cn/v1/chat/completions');
-        $model = env('AI_MODEL', 'moonshot-v1-8k');
+        $apiUrl = env('AI_API_URL', env('OLLAMA_URL', 'https://api.moonshot.cn/v1/chat/completions'));
+        $model = env('AI_MODEL', env('OLLAMA_MODEL', 'moonshot-v1-8k'));
         $apiKey = env('AI_API_KEY', '');
 
         $promptSql = "You are a strict SQL generator. Based on this database schema:
