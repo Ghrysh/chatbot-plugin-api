@@ -423,7 +423,7 @@ class ChatbotController extends Controller
         
         \Illuminate\Support\Facades\DB::purge('client_db_ai');
         
-        // 2. Fetch schema for allowed tables (Agnostic to MySQL/PgSQL/SQLServer)
+        // 2. Fetch schema + sample data for allowed tables (Agnostic to MySQL/PgSQL/SQLServer)
         $schemaText = "";
         try {
             foreach ($client->db_allowed_tables as $table) {
@@ -433,10 +433,23 @@ class ChatbotController extends Controller
                 foreach ($columns as $col) {
                     $colDetails[] = $col['name'] . " (" . $col['type_name'] . ")";
                 }
-                $schemaText .= "Table: $table
-Columns: " . implode(", ", $colDetails) . "
-
-";
+                $schemaText .= "Table: $table\nColumns: " . implode(", ", $colDetails) . "\n";
+                
+                // Ambil 2 baris sample agar AI tahu isi tabel
+                $sampleRows = \Illuminate\Support\Facades\DB::connection('client_db_ai')->table($table)->limit(2)->get();
+                if ($sampleRows->count() > 0) {
+                    $schemaText .= "Sample data:\n";
+                    foreach ($sampleRows as $row) {
+                        $rowArr = (array)$row;
+                        unset($rowArr['password'], $rowArr['remember_token'], $rowArr['two_factor_secret'], $rowArr['two_factor_recovery_codes'], $rowArr['response']);
+                        $parts = [];
+                        foreach ($rowArr as $k => $v) {
+                            if ($v !== null && $v !== '') $parts[] = "$k=$v";
+                        }
+                        $schemaText .= "  " . implode(", ", $parts) . "\n";
+                    }
+                }
+                $schemaText .= "\n";
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Schema Error: " . $e->getMessage());
