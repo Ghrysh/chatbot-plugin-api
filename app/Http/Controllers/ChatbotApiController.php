@@ -1,189 +1,422 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ChatbotLead;
+use App\Models\Client;
 use App\Models\ChatbotKnowledge;
-use Illuminate\Support\Str;
+use App\Models\ChatbotLead;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
-// Tambahkan 3 baris ini di bagian atas
-use Google\Client;
+// Tambahan untuk Google Sheet
+use Google\Client as GoogleClient;
 use Google\Service\Sheets;
 use Illuminate\Support\Facades\Cache;
 
-class ChatbotApiController extends Controller
+class ChatbotController extends Controller
 {
-    private function getClientId(Request $request)
+    public function send(Request $request)
     {
-        $licenseKey =$request->header('X-FutureCloud-License');
-        if (!$licenseKey) return null;
+        $licenseKey = $request->header('X-FutureCloud-License');
 
-        $client = \App\Models\Client::where('license_key',$licenseKey)
-            ->where('status', 'active')
-            ->first();
-            
-        return $client ? $client->id : null;
-    }
-
-    public function sendMessage(Request $request)
-    {
-        $clientId = $this->getClientId($request);
-        if (!$clientId) return response()->json(['reply' => 'Sistem belum dikonfigurasi.']);
-
-        $message = $request->input('message');$isFollowUp = $request->input('is_followup', false);$leadId = $request->input('lead_id');$history = $request->input('chat_history', []);$lead = null;
-        if ($leadId) {
-            $lead = ChatbotLead::find($leadId);
-        }
-        
-        if (!$lead) {$lead = ChatbotLead::create([
-                'client_id' => $clientId,
-                'ip_address' => $request->ip(),
-                'topic_context' => 'Umum',
-                'chat_history' => json_encode([
-                    ['sender' => 'user', 'text' => $message, 'time' => now()->format('d M, H:i')]
-                ]),
-                'live_chat_status' => 'none',
-                'contact_info' => '-'
-            ]);
-        } else {
-            $currentHistory = json_decode($lead->chat_history, true) ?? [];$currentHistory[] = ['sender' => 'user', 'text' => $message, 'time' => now()->format('d M, H:i')];$lead->chat_history = json_encode($currentHistory);$lead->save();
+        if (!$licenseKey) {
+            return response()->json(['error' => 'Missing License Key'], 401);
         }
 
-        if ($request->input('is_autoclose')) {
-            $lead->live_chat_status = 'ended';$lead->save();
+        $client = Client::where('license_key', $licenseKey)->first();
+
+        if (!$client || $client->status !== 'active') {
+            return response()->json(['error' => 'Invalid or inactive License Key'], 403);
+        }
+
+        $topic = $request->topic ?? 'Umum'; 
+        $rawMessage = strtolower(trim($request->message));
+        $originalMessage = trim($request->message);
+        $sessionId = $request->input('session_id');
+
+        // 1. DICTIONARY SLANG (KODE ASLI ANDA)
+        $slangDict = [
+            'gmn' => 'bagaimana', 'gimana' => 'bagaimana', 'bgmn' => 'bagaimana', 'gmna' => 'bagaimana',
+            'brp' => 'berapa', 'brapa' => 'berapa', 'brpa' => 'berapa', 'brap' => 'berapa', 'piro' => 'berapa',
+            'klo' => 'kalau', 'kalo' => 'kalau', 'klau' => 'kalau',
+            'bikin' => 'buat', 'bs' => 'bisa', 'gk' => 'tidak', 'ga' => 'tidak', 'gak' => 'tidak', 'ngga' => 'tidak', 'nggak' => 'tidak',
+            'tdk' => 'tidak', 'dgn' => 'dengan', 'yg' => 'yang', 'utk' => 'untuk',
+            'makasih' => 'terimakasih', 'trims' => 'terimakasih', 'thx' => 'terimakasih', 'mksh' => 'terimakasih',
+            'pw' => 'password', 'pass' => 'password', 'loginnya' => 'login',
+            'hrga' => 'harga', 'hrg' => 'harga', 'haarga' => 'harga', 'harg' => 'harga',
+            'pket' => 'paket', 'pkt' => 'paket', 'pakat' => 'paket', 'pakt' => 'paket',
+            'dpt' => 'dapat', 'dapet' => 'dapat', 'dapetnya' => 'dapat', 'dptnya' => 'dapat',
+            'aja' => 'saja', 'sja' => 'saja', 'doang' => 'saja',
+            'gartis' => 'gratis', 'grts' => 'gratis', 'free' => 'gratis', 'gratisan' => 'gratis', 'gretong' => 'gratis',
+            'pmoela' => 'pemula', 'pmula' => 'pemula', 'pemola' => 'pemula', 'pmla' => 'pemula', 'pemulaa' => 'pemula', 'mula' => 'pemula',
+            'propesional' => 'profesional', 'pro' => 'profesional', 'profesinal' => 'profesional', 'prfessional' => 'profesional', 'ptofesional' => 'profesional',
+            'bisns' => 'bisnis', 'bsnis' => 'bisnis', 'bsns' => 'bisnis', 'bussines' => 'bisnis', 'business' => 'bisnis', 'biznis' => 'bisnis',
+            'ftr' => 'fitur', 'isinya' => 'fitur', 'fasilitas' => 'fitur',
+            'bda' => 'beda', 'bdanya' => 'beda', 'bedanya' => 'beda', 'perbedaan' => 'beda'
+        ];
+
+        // 2. CLEANSING PESAN UNTUK PENCOCOKAN KEYWORD
+        $cleanMessage = preg_replace('/[^\w\s]/', '', $rawMessage);
+        $words = explode(' ', $cleanMessage);
+        foreach($words as &$w) {
+            if(isset($slangDict[$w])) $w = $slangDict[$w];
+        }
+        $message = implode(' ', $words);
+
+        // 3. GET IP & IDENTIFIKASI LEAD
+        $realIp = $request->ip();
+        if ($request->hasHeader('X-Forwarded-For')) {
+            $ips = explode(',', $request->header('X-Forwarded-For'));
+            $realIp = trim($ips[0]);
+        }
+
+        $lead = null;
+        if ($request->lead_id) {
+            $lead = ChatbotLead::where('client_id', $client->id)->find($request->lead_id);
+        }
+
+        // Jika Sedang Live Chat
+        if ($lead && in_array($lead->live_chat_status, ['pending', 'active']) && !$request->is_autoclose) {
+            $history = json_decode($lead->chat_history, true) ?? [];
+            $history[] = ['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')];
+            $lead->update(['chat_history' => json_encode($history), 'last_message' => $originalMessage]);
+            return response()->json(['reply' => null, 'lead_id' => $lead->id, 'show_live_chat_btn' => false]);
+        }
+
+        if ($request->is_autoclose) {
+            if ($lead) {
+                $contactInfo = 'Diakhiri Otomatis';
+                $lead->update(['contact_info' => $contactInfo]);
+            }
             return response()->json(['success' => true]);
         }
 
-        if ($isFollowUp) {
-            $lead->contact_info =$message;
-            $lead->topic_context = $request->input('last_chat', 'Umum');$lead->save();
-
-            return response()->json([
-                'reply' => "Terima kasih! Kontak Anda ($message) telah kami simpan. Tim CS kami akan segera menghubungi Anda.",
-                'is_finished' => true,
-                'lead_id' => $lead->id
+        if (!$lead) {
+            $lead = ChatbotLead::create([
+                'client_id' => $client->id,
+                'session_id' => $sessionId,
+                'user_id' => null,
+                'ip_address' => $realIp, 'topic_context' => $topic,
+                'contact_info' => '-', 
+                'chat_history' => json_encode([['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')]]), 
+                'last_message' => $originalMessage
+            ]);
+        } else {
+            $currentHistory = json_decode($lead->chat_history, true) ?? [];
+            $lastMsg = end($currentHistory);
+            if (!$lastMsg || $lastMsg['text'] !== $originalMessage || $lastMsg['sender'] !== 'user') {
+                $currentHistory[] = ['sender' => 'user', 'text' => $originalMessage, 'time' => now()->format('d M, H:i')];
+            }
+            $lead->update([
+                'chat_history' => json_encode($currentHistory), 
+                'last_message' => $originalMessage
             ]);
         }
 
-        // Basic NLP / Keyword Matching
-        $knowledges = ChatbotKnowledge::where('client_id', $clientId)->get();$reply = null;
-        $matchedTopic = 'Umum';
+        // Helper: simpan user message + bot reply ke chat_history DB
+        $saveReplyToHistory = function($reply) use ($lead, $originalMessage) {
+            $history = json_decode($lead->chat_history, true) ?? [];
+            $history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];
+            $lead->update(['chat_history' => json_encode($history)]);
+        };
 
-        $lowerMsg = strtolower($message);
+        if ($request->is_followup) {
+            $lead->update(['contact_info' => $originalMessage]);
+            return response()->json([
+                'reply' => 'Terima kasih! Tim kami akan segera menindaklanjuti kendala Anda. Sesi chat ini ditutup! 👋',
+                'is_finished' => true, 'lead_id' => $lead->id
+            ]);
+        }
+
+        // =========================================================================
+        // 4. RULE-BASED FAST RESPONSE
+        // =========================================================================
         
-        foreach ($knowledges as$k) {
-            $keywords = is_string($k->keywords) ? json_decode($k->keywords, true) :$k->keywords;
-            if (!$keywords) continue;
+        if (preg_match('/\b(halo|hallo|hai|p|ping|pagi|siang|sore|malam|test|tes)\b/i', $cleanMessage) && str_word_count($cleanMessage) <= 4) {
+            $botReply = 'Halo Kak! 👋 Ada yang bisa kami bantu?';
+            $saveReplyToHistory($botReply);
+            return response()->json([
+                'reply' => $botReply,
+                'lead_id' => $lead->id,
+                'show_live_chat_btn' => false
+            ]);
+        }
 
-            foreach ($keywords as$kw) {
-                if (Str::contains($lowerMsg, strtolower(trim($kw)))) {
-                    $reply =$k->response;
-                    $matchedTopic =$k->topic ?? 'Umum';
-                    break 2;
+        if (preg_match('/\b(makasih|terima kasih|terimakasih|thanks|thx|thank you|oke|ok|sip|baik|baiklah)\b/i', $cleanMessage) && str_word_count($cleanMessage) <= 5) {
+            $botReply = 'Sama-sama Kak! 😊 Apakah ada hal lain yang bisa dibantu?';
+            $saveReplyToHistory($botReply);
+            return response()->json([
+                'reply' => $botReply,
+                'lead_id' => $lead->id,
+                'show_live_chat_btn' => false
+            ]);
+        }
+
+        // =========================================================================
+        // 5. PENYIAPAN KONTEKS & KNOWLEDGE UNTUK AI
+        // =========================================================================
+
+        $showLiveChatBtn = false;
+        $systemContent = "Kamu adalah asisten virtual (Customer Service) yang ramah. Awali jawaban dengan 'Halo Kak'. Jawab dengan bahasa Indonesia santai dan sopan. Jawablah secara singkat maksimal 2 kalimat.\n\n";
+
+        // Pencarian Knowledge Base dengan Levenshtein (KODE ASLI ANDA)
+        $knowledges = ChatbotKnowledge::where('client_id', $client->id)->get();
+        $bestMatch = null;
+        $highestScore = 0;
+
+        foreach ($knowledges as $k) {
+            $keywords = $k->keywords ?? [];
+            if (is_string($keywords)) {
+                $keywords = json_decode($keywords, true) ?? [];
+            }
+
+            $score = 0;
+            foreach ($keywords as $kw) {
+                $kw = strtolower(trim($kw));
+                if (str_contains($message, $kw)) {
+                    $score += strlen($kw) * 2; 
+                } else {
+                    $kwWords = explode(' ', $kw);
+                    foreach($kwWords as $kww) {
+                        if (strlen($kww) < 3) continue;
+                        foreach($words as $userWord) {
+                            if (strlen($userWord) >= 3) {
+                                if (str_contains($userWord, $kww) || str_contains($kww, $userWord)) {
+                                    $score += 3;
+                                }
+                                elseif (levenshtein($userWord, $kww) <= 1) {
+                                    $score += 2;
+                                }
+                            }
+                        }
+                    }
                 }
+            }
+            if ($score > $highestScore) {
+                $highestScore = $score;
+                $bestMatch = $k;
             }
         }
 
-        // MODIFIKASI: Cek Integrasi Database MySQL atau Google Sheet
-        if (!$reply) {
-            $client = \App\Models\Client::find($clientId);
-            
-            if ($client &&$client->db_allow_read) {
-                
-                // Jika tipe integrasinya Google Sheet
-                if (isset($client->integration_type) &&$client->integration_type === 'google_sheet') {
-                    $sheetReply =$this->queryGoogleSheetWithAi($client,$message);
-                    if ($sheetReply && stripos($sheetReply, 'Maaf,') !== 0) {
-                        $reply =$sheetReply;
-                        $matchedTopic = 'Google Sheet Query';
-                    }
-                } 
-                // Jika tipe integrasinya MySQL (Default)
-                else if (!empty($client->db_allowed_tables)) {
-                    $dbReply =$this->queryDatabaseWithAi($client,$message);
-                    if ($dbReply && stripos($dbReply, 'Maaf,') !== 0) {
-                        $reply =$dbReply;
-                        $matchedTopic = 'Database Query';
-                    }
-                }
-            }
+        // PRIORITAS 1: Coba query Database MySQL ATAU Google Sheet DULUAN
+        $dbDataJson = null;
+        $sheetDataCsv = null;
 
-            if (!$reply) {$reply = "Maaf, Bot belum mengerti pertanyaan Anda. Apakah Anda ingin berbicara langsung dengan tim Support/CS kami?";
-                $lead->topic_context = 'Unrecognized: ' . Str::limit($message, 30);$history = json_decode($lead->chat_history, true) ?? [];$history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];$lead->chat_history = json_encode($history);$lead->save();
-                return response()->json([
-                    'reply' => $reply,
-                    'show_live_chat_btn' => true,
-                    'lead_id' => $lead->id
-                ]);
+        if ($client->db_allow_read) {
+            if ($client->integration_type === 'google_sheet' && !empty($client->spreadsheet_id)) {
+                // Tarik data dari Google Sheet
+                $range = $client->sheet_name_range ?: 'Sheet1!A1:Z1000';
+                $sheetDataCsv = $this->fetchGoogleSheetData($client->spreadsheet_id, $range);
+            } elseif (!empty($client->db_allowed_tables)) {
+                // Tarik data dari Database MySQL asli milik Anda
+                $dbDataJson = $this->queryDatabaseWithAi($client, $originalMessage);
             }
         }
 
-        $lead->topic_context =$matchedTopic;
+        // PENENTUAN PRIORITAS CONTEXT UNTUK AI
+        if ($sheetDataCsv && !str_starts_with($sheetDataCsv, 'Error') && $sheetDataCsv !== "Tidak ada data di Google Sheet.") {
+             // Injeksi Google Sheet ke Prompt
+             $systemContent .= "=== DATA DARI GOOGLE SHEET ===\n" . $sheetDataCsv . "\n\nINSTRUKSI WAJIB:\n1. Jawab pertanyaan user HANYA berdasarkan data di atas secara natural dan profesional.\n2. Tulis ANGKA PERSIS sesuai aslinya.\n3. Sebutkan SEMUA data yang relevan, jangan ada yang dilewatkan.\n4. DILARANG KERAS mengarang data yang tidak ada di atas.\n5. Jawab dalam bahasa Indonesia.";
+             $showLiveChatBtn = false;
+        } elseif ($dbDataJson && $dbDataJson !== '[]' && stripos($dbDataJson, 'ERROR') !== 0) {
+             // Injeksi MySQL Database ke Prompt
+             $systemContent .= "=== DATA DARI DATABASE ===\n" . $dbDataJson . "\n\nINSTRUKSI WAJIB:\n1. Jawab pertanyaan user HANYA berdasarkan data di atas secara natural dan profesional.\n2. Tulis ANGKA PERSIS sesuai aslinya (misal 100000 tulis 100.000), JANGAN ditambah/dikurang.\n3. Sebutkan SEMUA data yang relevan, jangan ada yang dilewatkan.\n4. DILARANG KERAS mengarang data yang tidak ada di atas.\n5. Jawab dalam bahasa Indonesia.";
+             $showLiveChatBtn = false;
+        } elseif ($bestMatch && $highestScore >= 3) {
+            // Fallback ke Knowledge Base
+            $systemContent .= "INFORMASI UNTUK MENJAWAB:\n" . $bestMatch->response . "\n\nATURAN:\n1. WAJIB jawab menggunakan bahasa Indonesia.\n2. Jawab HANYA berdasarkan informasi di atas. JANGAN MENGARANG.";
+        } else {
+             // Tidak ada data (Fallback asli Anda)
+             return response()->json([
+                 'reply' => "Halo Kak! Maaf sekali, untuk saat ini aku belum punya informasi terkait hal tersebut.\n\nSilakan klik tombol 'Live Chat CS' di bawah agar Kakak bisa langsung dibantu oleh agen manusia kami ya! 🙏",
+                 'show_live_chat_btn' => true,
+                 'lead_id' => $lead->id
+             ]);
+        }
+
+        // =========================================================================
+        // 6. BUILD CHAT MESSAGES ARRAY
+        // =========================================================================
+        $chatMessages = [];
         
-        $history = json_decode($lead->chat_history, true) ?? [];$history[] = ['sender' => 'bot', 'text' => $reply, 'time' => now()->format('d M, H:i')];$lead->chat_history = json_encode($history);$lead->save();
+        $chatMessages[] = [
+            'role' => 'system',
+            'content' => $systemContent
+        ];
+        
+        if ($lead && $lead->chat_history) {
+            $history = json_decode($lead->chat_history, true) ?? [];
+            $history = array_slice($history, -5);
+            foreach($history as $index => $msg) {
+                $role = $msg['sender'] === 'user' ? 'user' : 'assistant';
+                $chatMessages[] = ['role' => $role, 'content' => $msg['text']];
+            }
+        } else {
+            $chatMessages[] = [
+                'role' => 'user',
+                'content' => $originalMessage
+            ];
+        }
+
+
+        // =========================================================================
+        // 7. REQUEST KE OLLAMA / MOONSHOT API AI (KODE ASLI ANDA)
+        // =========================================================================
+        $reply = "";
+        $apiUrl = env('AI_API_URL', env('OLLAMA_URL', 'https://api.moonshot.cn/v1/chat/completions'));
+        $apiKey = env('AI_API_KEY', '');
+        try {
+            $req = Http::timeout(300);
+            if ($apiKey) {
+                $req = $req->withToken($apiKey);
+            }
+            $llmResponse = $req->post($apiUrl, [
+                'model' => env('AI_MODEL', env('OLLAMA_MODEL', 'moonshot-v1-8k')),
+                'messages' => $chatMessages,
+                'stream' => false,
+                'max_tokens' => 300, 
+                'options' => [
+                    'temperature' => 0.1,
+                    'top_p' => 0.85,
+                    'repeat_penalty' => 1.2
+                ] 
+            ]);
+
+            if ($llmResponse->successful()) {
+                $aiText = trim($llmResponse->json('choices.0.message.content') ?? $llmResponse->json('message.content', ''));
+                $aiText = preg_replace('/^(aturan|rules|system|mimin:).*$/im', '', $aiText);
+                $aiText = trim($aiText);
+                if (!empty($aiText)) {
+                    $reply = nl2br($aiText);
+                }
+            } else {
+                throw new \Exception("LLM Error: " . $llmResponse->status());
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("AI API Error: " . $e->getMessage());
+            $reply = "DEBUG ERROR AI: " . $e->getMessage();
+            $showLiveChatBtn = true;
+        }
+
+        if (empty($reply)) {
+            $reply = "Maaf Kak, kami sedang kesulitan memproses jawaban saat ini. Ingin terhubung dengan Admin (Live Chat)?";
+            $showLiveChatBtn = true;
+        }
+
+        if (preg_match('/(live chat|agen manusia|cs|customer service|admin)/i', $reply)) {
+            $showLiveChatBtn = true;
+        }
+
+        $saveReplyToHistory($reply);
 
         return response()->json([
             'reply' => $reply,
-            'lead_id' => $lead->id
+            'lead_id' => $lead->id,
+            'show_live_chat_btn' => $showLiveChatBtn
         ]);
     }
 
-    public function requestLiveChat(Request $request)
+    public function pollLiveChat(Request $request)
     {
-        $lead = ChatbotLead::findOrFail($request->input('lead_id'));$lead->live_chat_status = 'pending';
-        $lead->topic_context = 'Live Chat Request';$lead->save();
+        $licenseKey = $request->header('X-FutureCloud-License');
+        $client = Client::where('license_key', $licenseKey)->first();
 
-        return response()->json(['success' => true, 'lead_id' => $lead->id]);
-    }
-
-    public function pollLiveChat(int $lead_id)
-    {
-        $lead = ChatbotLead::find($lead_id);
-        if (!$lead) return response()->json(['status' => 'none']);
-
-        $history = json_decode($lead->chat_history, true) ?? [];$adminName = 'CS Agent'; 
-        
-        if ($lead->admin_id) {
-            $admin = \App\Models\User::find($lead->admin_id);
-            if ($admin) $adminName =$admin->name;
+        if (!$client || $client->status !== 'active') {
+            return response()->json(['error' => 'Unauthorized'], 403);
         }
 
+        $lead = ChatbotLead::where('client_id', $client->id)->find($request->lead_id);
+        
         return response()->json([
-            'status' => $lead->live_chat_status, 
-            'history' => $history,
-            'admin_name' => $adminName
+            'status' => $lead ? $lead->live_chat_status : 'none',
+            'history' => $lead ? json_decode($lead->chat_history) : [],
+            'admin_name' => ($lead && $lead->admin_id) ? \App\Models\User::find($lead->admin_id)->name : null
         ]);
     }
 
     public function sendLiveChatMessage(Request $request)
     {
-        $lead = ChatbotLead::findOrFail($request->input('lead_id'));
-        $history = json_decode($lead->chat_history, true) ?? [];
-        if ($request->input('is_autoclose')) {
-            $lead->live_chat_status = 'ended';$contactInfo = 'Diakhiri Otomatis';
-            $lead->contact_info =$contactInfo;
-            $lead->save();
-            return response()->json(['success' => true]);
+        $licenseKey = $request->header('X-FutureCloud-License');
+        $client = Client::where('license_key', $licenseKey)->first();
+
+        if (!$client || $client->status !== 'active') {
+            return response()->json(['error' => 'Unauthorized'], 403);
         }
+
+        $lead = ChatbotLead::where('client_id', $client->id)->findOrFail($request->lead_id);
         
+        $history = json_decode($lead->chat_history, true) ?? [];
         $history[] = [
             'sender' => 'user',
-            'text' => $request->input('message'),
+            'text' => $request->message,
             'time' => now()->format('d M, H:i')
         ];
         
-        $lead->chat_history = json_encode($history);$lead->save();
+        $lead->chat_history = json_encode($history);
+        $lead->last_message = $request->message;
+        $lead->save();
 
         return response()->json(['success' => true]);
     }
 
-    private function queryDatabaseWithAi(\App\Models\Client $client, string$message)
+    public function requestLiveChat(Request $request)
     {
-        // 1. Setup connection
-        $driver =$client->db_driver ?? 'mysql';
+        $licenseKey = $request->header('X-FutureCloud-License');
+        $client = Client::where('license_key', $licenseKey)->first();
+
+        if (!$client || $client->status !== 'active') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $lead = null;
+        
+        if ($request->lead_id) {
+            $lead = ChatbotLead::where('client_id', $client->id)->find($request->lead_id);
+        }
+
+        if (!$lead) {
+            $realIp = $request->ip();
+            if ($request->hasHeader('X-Forwarded-For')) {
+                $ips = explode(',', $request->header('X-Forwarded-For'));
+                $realIp = trim($ips[0]);
+            }
+
+            $lead = ChatbotLead::create([
+                'client_id' => $client->id,
+                'session_id' => $request->input('session_id'),
+                'user_id' => null,
+                'ip_address' => $realIp,
+                'topic_context' => 'Live Chat',
+                'contact_info' => '-',
+                'chat_history' => json_encode([]),
+                'last_message' => 'Meminta Live Chat',
+                'live_chat_status' => 'pending'
+            ]);
+        } else {
+            $lead->update([
+                'live_chat_status' => 'pending'
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'lead_id' => $lead->id
+        ]);
+    }
+
+    private function queryDatabaseWithAi(\App\Models\Client $client, string $message)
+    {
+        // 1. Setup connection (KODE ASLI ANDA)
+        $driver = 'mysql';
+        if (in_array($client->db_port, [5432, 5433, 6543])) {
+            $driver = 'pgsql';
+        } elseif ($client->db_port == 1433) {
+            $driver = 'sqlsrv';
+        }
+        
         $config = [
             'driver' => $driver,
             'host' => $client->db_host,
@@ -194,131 +427,142 @@ class ChatbotApiController extends Controller
         ];
         
         if ($driver === 'mysql') {
-            $config['charset'] = 'utf8mb4';$config['collation'] = 'utf8mb4_unicode_ci';
-        } elseif ($driver === 'pgsql') {$config['charset'] = 'utf8';
+            $config['charset'] = 'utf8mb4';
+            $config['collation'] = 'utf8mb4_unicode_ci';
+        } elseif ($driver === 'pgsql') {
+            $config['charset'] = 'utf8';
         }
 
         config(['database.connections.client_db_ai' => $config]);
-        DB::purge('client_db_ai');
+        \Illuminate\Support\Facades\DB::purge('client_db_ai');
         
-        // 2. Fetch schema for allowed tables
+        // 2. Fetch schema + sample data
         $schemaText = "";
         try {
-            foreach ($client->db_allowed_tables as $table) {$columns = DB::connection('client_db_ai')->select("SHOW COLUMNS FROM `$table`");
+            foreach ($client->db_allowed_tables as $table) {
+                $columns = \Illuminate\Support\Facades\Schema::connection('client_db_ai')->getColumns($table);
+                
                 $colDetails = [];
-                foreach ($columns as $col) {$colDetails[] = $col->Field . " (" . $col->Type . ")";
+                foreach ($columns as $col) {
+                    $colDetails[] = $col['name'] . " (" . $col['type_name'] . ")";
                 }
-                $schemaText .= "Table: $table\nColumns: " . implode(", ", $colDetails) . "\n\n";
+                $schemaText .= "Table: $table\nColumns: " . implode(", ", $colDetails) . "\n";
+                
+                $sampleRows = \Illuminate\Support\Facades\DB::connection('client_db_ai')->table($table)->limit(2)->get();
+                if ($sampleRows->count() > 0) {
+                    $schemaText .= "Sample data:\n";
+                    foreach ($sampleRows as $row) {
+                        $rowArr = (array)$row;
+                        unset($rowArr['password'], $rowArr['remember_token'], $rowArr['two_factor_secret'], $rowArr['two_factor_recovery_codes'], $rowArr['response']);
+                        $parts = [];
+                        foreach ($rowArr as $k => $v) {
+                            if ($v !== null && $v !== '') $parts[] = "$k=$v";
+                        }
+                        $schemaText .= "  " . implode(", ", $parts) . "\n";
+                    }
+                }
+                $schemaText .= "\n";
             }
         } catch (\Exception $e) {
-            return "Maaf, terjadi kesalahan saat membaca struktur database klien.";
+            \Illuminate\Support\Facades\Log::error("Schema Error: " . $e->getMessage());
+            return "ERROR: Gagal membaca struktur database.";
         }
 
         // 3. Ask AI to generate SQL
-        $ollamaUrl = env('OLLAMA_URL', 'http://127.0.0.1:11434/api/chat');
-        $model = env('OLLAMA_MODEL', 'kimi-k3-in-c'); 
+        $apiUrl = env('AI_API_URL', env('OLLAMA_URL', 'https://api.moonshot.cn/v1/chat/completions'));
+        $model = env('AI_MODEL', env('OLLAMA_MODEL', 'moonshot-v1-8k'));
+        $apiKey = env('AI_API_KEY', '');
 
-        $promptSql = "You are an expert SQL generator. Based on this MySQL schema:\n\n$schemaText\n\nUser Question: '$message'\n\nWrite ONLY a valid MySQL SELECT query to answer this. Do NOT add markdown, explanations, or any text other than the SQL query. If it requires counting, use COUNT(). If it requires multiple tables, use JOIN. ALWAYS use `SELECT` only. Return exactly the SQL string.";
+        $promptSql = "You are a strict SQL generator for a $driver database. Here is the schema:
+
+$schemaText
+
+User Question: '$message'
+
+RULES (OBEY OR SYSTEM CRASHES):
+1. Output ONLY raw SQL. No markdown, no explanation, no ```.
+2. Always use SELECT * (never select specific columns).
+3. Pick the MOST RELEVANT table based on the question.
+4. KEYWORD EXTRACTION: Extract ONLY the core search term from the user's question. Remove filler words like 'harga', 'berapa', 'domain', 'produk', 'yang', 'di', 'ada', 'tolong', 'cari', 'sebutkan'.
+   Example: 'berapa harga domain .com' -> keyword is '.com' (NOT 'domain .com')
+   Example: 'cari user Bintang Satrio' -> keyword is 'Bintang Satrio' (NOT 'cari user')
+5. If user asks to LIST ALL items or COUNT items (e.g. 'ada berapa domain', 'sebutkan semua produk'), use NO WHERE clause: SELECT * FROM table;
+6. If user asks about a SPECIFIC item, use: WHERE LOWER(column) LIKE '%keyword%'
+7. If a table has a 'type' column and user mentions a category (domain/hosting/vps), filter by type: WHERE LOWER(type) LIKE '%category%'
+8. LIMIT 10 to prevent too many results.
+
+Examples:
+- 'berapa harga domain .com' -> SELECT * FROM products WHERE LOWER(name) LIKE '%.com%' LIMIT 10;
+- 'ada berapa domain yang dijual' -> SELECT * FROM products WHERE LOWER(type) LIKE '%domain%' LIMIT 10;
+- 'sebutkan semua produk' -> SELECT * FROM products LIMIT 10;
+- 'cari user bernama Bintang' -> SELECT * FROM users WHERE LOWER(name) LIKE '%bintang%' LIMIT 10;";
 
         $sqlQuery = "";
         try {
-            $response = Http::timeout(30)->post($ollamaUrl, [
+            $req = \Illuminate\Support\Facades\Http::timeout(300);
+            if ($apiKey) {$req = $req->withToken($apiKey);
+            }
+            $response = $req->post($apiUrl, [
                 'model' => $model,
                 'messages' => [['role' => 'user', 'content' => $promptSql]],
                 'stream' => false,
+                'max_tokens' => 100,
+                'temperature' => 0.0,
             ]);
             
-            if ($response->successful()) {$sqlQuery = trim($response->json('message.content', ''));$sqlQuery = str_replace(['```sql', '```mysql', '```'], '', $sqlQuery);
+            if ($response->successful()) {
+                $sqlQuery = trim($response->json('choices.0.message.content') ?? $response->json('message.content', ''));$sqlQuery = str_replace(['```sql', '```mysql', '```'], '', $sqlQuery);
                 $sqlQuery = trim($sqlQuery);
             } else {
-                return "Maaf, layanan AI sedang sibuk (Generate SQL gagal).";
+                return "ERROR: LLM API gagal (" . $response->status() . ").";
             }
         } catch (\Exception $e) {
-             return "Maaf, terjadi kesalahan komunikasi dengan server AI.";
+            \Illuminate\Support\Facades\Log::error("LLM Error: " . $e->getMessage());
+            return "ERROR: Gagal menghubungi AI untuk generate SQL.";
         }
-        
+
         if (empty($sqlQuery) || stripos($sqlQuery, 'SELECT') !== 0) {
-            return "Maaf, AI tidak dapat membuat query yang aman untuk pertanyaan ini.";
+            return "ERROR: Query bukan SELECT yang valid.";
         }
         
         // 4. Execute SQL
         try {
-            $results = DB::connection('client_db_ai')->select($sqlQuery);
+            $results = \Illuminate\Support\Facades\DB::connection('client_db_ai')->select($sqlQuery);
             $resultsArray = array_map(function($row) { return (array)$row; }, $results);
-            $dataJson = json_encode($resultsArray);
-        } catch (\Exception $e) {
-            return "Maaf, query database gagal dijalankan.";
-        }
-
-        // 5. Ask AI to generate natural language response
-        $promptAnswer = "You are a helpful AI assistant. User Question: '$message'\n\nData from database: $dataJson\n\nPlease formulate a natural, polite, and helpful answer in Indonesian based on the data. Do NOT mention the SQL query or database structure. Just answer the user's question directly.";
-
-        try {
-            $response = Http::timeout(45)->post($ollamaUrl, [
-                'model' => $model,
-                'messages' => [['role' => 'user', 'content' => $promptAnswer]],
-                'stream' => false,
-            ]);
-            if ($response->successful()) {
-                return trim($response->json('message.content', ''));
+            
+            if (empty($resultsArray)) {
+                return "[]";
             }
+            
+            $textOutput = "";
+            foreach ($resultsArray as $idx => $row) {
+                if ($idx >= 5) {
+                    $textOutput .= "... dan data lainnya.\n";
+                    break;
+                }
+                $rowStrings = [];
+                foreach ($row as $key => $val) {
+                    $rowStrings[] = "$key: $val";
+                }
+                $textOutput .= "- " . implode(', ', $rowStrings) . "\n";
+            }
+            return trim($textOutput);
         } catch (\Exception $e) {
-             return "Maaf, terjadi kesalahan saat merumuskan jawaban.";
+            return "ERROR: Gagal menjalankan query database.";
         }
-        
-        return "Maaf, bot tidak dapat memberikan jawaban dari database saat ini.";
     }
 
-    // FUNGSI BARU: Logic untuk memproses data sheet dengan AI Ollama
-    private function queryGoogleSheetWithAi(\App\Models\Client $client, string $message)
-    {
-        $spreadsheetId = $client->spreadsheet_id;
-        $range = $client->sheet_name_range ?: 'Sheet1!A1:Z1000'; // Default Range jika kosong
-
-        if (!$spreadsheetId) {
-            return null;
-        }
-
-        // Tarik data sheet dalam format teks/CSV
-        $sheetData = $this->fetchGoogleSheetData($spreadsheetId, $range);
-
-        if (str_starts_with($sheetData, 'Error') || $sheetData === "Tidak ada data di Google Sheet.") {
-            return null; // Akan fallback ke flow Live Chat agent
-        }
-
-        // Tanya Ollama untuk merumuskan jawaban berdasarkan teks CSV dari Google Sheet
-        $ollamaUrl = env('OLLAMA_URL', '[http://127.0.0.1:11434/api/chat](http://127.0.0.1:11434/api/chat)');
-        $model = env('OLLAMA_MODEL', 'kimi-k3-in-c');
-
-        $promptAnswer = "You are a helpful AI assistant. User Question: '$message'\n\nData from Google Sheet:\n$sheetData\n\nPlease formulate a natural, polite, and helpful answer in Indonesian based on the data provided. Do NOT mention the data source or formatting. Just answer the user's question directly and concisely.";
-
-        try {
-            $response = Http::timeout(45)->post($ollamaUrl, [
-                'model' => $model,
-                'messages' => [['role' => 'user', 'content' => $promptAnswer]],
-                'stream' => false,
-            ]);
-
-            if ($response->successful()) {
-                return trim($response->json('message.content', ''));
-            }
-        } catch (\Exception $e) {
-            return "Maaf, terjadi kesalahan komunikasi dengan server AI.";
-        }
-
-        return null;
-    }
-
+    // =========================================================================
     // FUNGSI BARU: Logic untuk mengambil data dari Google Sheet API
+    // =========================================================================
     private function fetchGoogleSheetData($spreadsheetId, $range = 'Sheet1!A1:Z100')
     {
-        // Menggunakan Cache selama 5 menit agar API Google tidak limit dan chat tetap cepat
         return Cache::remember("sheet_data_{$spreadsheetId}", 300, function () use ($spreadsheetId, $range) {
-            $client = new Client();
+            $client = new GoogleClient();
             $client->setApplicationName('Futurecloud Chatbot');
             $client->setScopes([Sheets::SPREADSHEETS_READONLY]);
             
-            // Pastikan Anda sudah menyimpan file JSON credential di folder storage/app/
+            // Path JSON Credential
             $client->setAuthConfig(storage_path('app/google-credentials.json')); 
 
             $service = new Sheets($client);
@@ -331,8 +575,7 @@ class ChatbotApiController extends Controller
                     return "Tidak ada data di Google Sheet.";
                 }
 
-                // Ubah array data dari sheet menjadi string format text / tabel yang mudah dibaca AI
-                $textData = "Data Terbaru (Google Sheet):\n";
+                $textData = "Data Terbaru:\n";
                 foreach ($values as $row) {
                     $textData .= implode(" | ", $row) . "\n";
                 }
