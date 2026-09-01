@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseConfigController extends Controller
 {
@@ -20,6 +21,29 @@ class DatabaseConfigController extends Controller
 
     public function testAndSave(Request $request)
     {
+        $client = $this->getClient($request);
+        if (!$client) {
+            return back()->with('error', 'Klien tidak ditemukan.');
+        }
+
+        // Simpan Konfigurasi Umum
+        $client->integration_type = $request->input('integration_type', 'mysql');
+        $client->db_allow_read = $request->has('db_allow_read');
+        
+        // JIKA TIPE INTEGRASI ADALAH GOOGLE SHEET
+        if ($client->integration_type === 'google_sheet') {
+            $client->spreadsheet_id = $request->input('spreadsheet_id');
+            $client->sheet_name_range = $request->input('sheet_name_range');
+            $client->save();
+            
+            $url = url()->previous();
+            if (!str_contains($url, 'botTab=')) {
+                $url .= (parse_url($url, PHP_URL_QUERY) ? '&' : '?') . 'botTab=database';
+            }
+            return redirect($url)->with('success', 'Konfigurasi Google Sheet berhasil disimpan.');
+        }
+
+        // JIKA TIPE INTEGRASI ADALAH MYSQL/PGSQL
         $request->validate([
             'db_host' => 'required|string',
             'db_port' => 'required|string',
@@ -28,23 +52,25 @@ class DatabaseConfigController extends Controller
             'db_password' => 'nullable|string',
         ]);
 
-        $client = $this->getClient($request);
-        if (!$client) {
-            return back()->with('error', 'Klien tidak ditemukan.');
-        }
-
-        // Simpan sementara konfigurasi
         $client->db_host = $request->db_host;
         $client->db_port = $request->db_port;
         $client->db_database = $request->db_database;
         $client->db_username = $request->db_username;
         $client->db_password = $request->db_password;
-        $client->db_allow_read = $request->has('db_allow_read');
+        
+        // Deteksi Driver Database berdasarkan Port
+        $driver = 'mysql';
+        if (in_array($request->db_port, [5432, 5433, 6543])) {
+            $driver = 'pgsql';
+        } elseif ($request->db_port == 1433) {
+            $driver = 'sqlsrv';
+        }
         
         // Tes koneksi
         config([
             'database.connections.client_db' => [
                 'driver' => $driver,
+                'host' => $client->db_host,
                 'port' => $client->db_port,
                 'database' => $client->db_database,
                 'username' => $client->db_username,
@@ -60,8 +86,9 @@ class DatabaseConfigController extends Controller
         try {
             DB::purge('client_db');
             
-            // Gunakan fitur Schema builder bawaan Laravel agar mendukung semua database (MySQL, PgSQL, SQL Server, dll)
-            }, $tables);
+            // Gunakan fitur Schema builder bawaan Laravel
+            $tables = Schema::connection('client_db')->getTables();
+            $tablesList = array_map(function($t) { return $t['name']; }, $tables);
 
             $allowed = $client->db_allowed_tables ?? [];
             $allowed = array_intersect($allowed, $tablesList);
