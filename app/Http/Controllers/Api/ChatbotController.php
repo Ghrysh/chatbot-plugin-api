@@ -448,21 +448,29 @@ Columns: " . implode(", ", $colDetails) . "
         $model = env('AI_MODEL', env('OLLAMA_MODEL', 'moonshot-v1-8k'));
         $apiKey = env('AI_API_KEY', '');
 
-        $promptSql = "You are a strict SQL generator. Based on this database schema:
+        $promptSql = "You are a strict SQL generator for a $driver database. Here is the schema:
 
 $schemaText
 
 User Question: '$message'
 
-Write ONLY a valid $driver SELECT query. 
-YOU MUST OBEY THESE RULES OR THE SYSTEM WILL CRASH:
-1. Output ONLY the raw SQL. No markdown, no \`\`\`sql.
-2. YOU MUST USE \`SELECT *\`. DO NOT select specific columns like \`SELECT price\`.
-3. If the user asks for ALL items, DO NOT use a WHERE clause. If they ask for a specific item, use \`LOWER(column) LIKE '%keyword%'\`. NEVER use \`=\` for strings.
+RULES (OBEY OR SYSTEM CRASHES):
+1. Output ONLY raw SQL. No markdown, no explanation, no ```.
+2. Always use SELECT * (never select specific columns).
+3. Pick the MOST RELEVANT table based on the question.
+4. KEYWORD EXTRACTION: Extract ONLY the core search term from the user's question. Remove filler words like 'harga', 'berapa', 'domain', 'produk', 'yang', 'di', 'ada', 'tolong', 'cari', 'sebutkan'.
+   Example: 'berapa harga domain .com' -> keyword is '.com' (NOT 'domain .com')
+   Example: 'cari user Bintang Satrio' -> keyword is 'Bintang Satrio' (NOT 'cari user')
+5. If user asks to LIST ALL items or COUNT items (e.g. 'ada berapa domain', 'sebutkan semua produk'), use NO WHERE clause: SELECT * FROM table;
+6. If user asks about a SPECIFIC item, use: WHERE LOWER(column) LIKE '%keyword%'
+7. If a table has a 'type' column and user mentions a category (domain/hosting/vps), filter by type: WHERE LOWER(type) LIKE '%category%'
+8. LIMIT 10 to prevent too many results.
 
-EXAMPLES (Adapt to the provided schema!):
-User: 'what items do you have / list all items / ada apa saja' -> SELECT * FROM [your_table_name];
-User: 'how much is [specific_item]' -> SELECT * FROM [your_table_name] WHERE LOWER([item_column]) LIKE '%[specific_item]%';";
+Examples:
+- 'berapa harga domain .com' -> SELECT * FROM products WHERE LOWER(name) LIKE '%.com%' LIMIT 10;
+- 'ada berapa domain yang dijual' -> SELECT * FROM products WHERE LOWER(type) LIKE '%domain%' LIMIT 10;
+- 'sebutkan semua produk' -> SELECT * FROM products LIMIT 10;
+- 'cari user bernama Bintang' -> SELECT * FROM users WHERE LOWER(name) LIKE '%bintang%' LIMIT 10;";
 
         $sqlQuery = "";
         try {
