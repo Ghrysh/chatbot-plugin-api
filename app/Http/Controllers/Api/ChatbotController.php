@@ -199,26 +199,26 @@ class ChatbotController extends Controller
             }
         }
 
-        if ($bestMatch && $highestScore >= 3) {
+        // PRIORITAS 1: Coba query database DULUAN (jika diaktifkan)
+        $dbDataJson = null;
+        if ($client->db_allow_read && !empty($client->db_allowed_tables)) {
+            $dbDataJson = $this->queryDatabaseWithAi($client, $originalMessage);
+            \Illuminate\Support\Facades\Log::info("DEBUG DB DATA JSON: " . $dbDataJson);
+        }
+
+        if ($dbDataJson && $dbDataJson !== '[]' && stripos($dbDataJson, 'ERROR') !== 0) {
+             // Database berhasil mengembalikan data! Gunakan data ini.
+             $dbContextForUser = true;
+             $showLiveChatBtn = false;
+        } elseif ($bestMatch && $highestScore >= 3) {
+            // PRIORITAS 2: Fallback ke Knowledge Base jika database tidak ada data
             $systemContent .= "INFORMASI UNTUK MENJAWAB:\n" . $bestMatch->response . "\n\nATURAN:\n1. WAJIB jawab menggunakan bahasa Indonesia.\n2. Jawab HANYA berdasarkan informasi di atas. JANGAN MENGARANG.";
         } else {
-            $dbDataJson = null;
-            if ($client->db_allow_read && !empty($client->db_allowed_tables)) {
-                $dbDataJson = $this->queryDatabaseWithAi($client, $originalMessage);
-                \Illuminate\Support\Facades\Log::info("DEBUG DB DATA JSON: " . $dbDataJson);
-            }
-
-            if ($dbDataJson && $dbDataJson !== '[]' && stripos($dbDataJson, 'ERROR') !== 0) {
-                 $dbContextForUser = true;
-                 $showLiveChatBtn = false;
-            } else {
-                 // OPTIMIZATION: Skip AI generation completely if we don't have any data! 
-                 // Saves CPU/API costs and guarantees 0% hallucination.
-                 return response()->json([
-                     'reply' => "Halo Kak! Maaf sekali, untuk saat ini aku belum punya informasi terkait hal tersebut.\n\nSilakan klik tombol 'Live Chat CS' di bawah agar Kakak bisa langsung dibantu oleh agen manusia kami ya! 🙏",
-                     'show_live_chat' => true
-                 ]);
-            }
+             // Tidak ada data dari manapun
+             return response()->json([
+                 'reply' => "Halo Kak! Maaf sekali, untuk saat ini aku belum punya informasi terkait hal tersebut.\n\nSilakan klik tombol 'Live Chat CS' di bawah agar Kakak bisa langsung dibantu oleh agen manusia kami ya! 🙏",
+                 'show_live_chat' => true
+             ]);
         }
 
         // =========================================================================
