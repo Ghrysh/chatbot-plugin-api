@@ -207,8 +207,8 @@ class ChatbotController extends Controller
         }
 
         if ($dbDataJson && $dbDataJson !== '[]' && stripos($dbDataJson, 'ERROR') !== 0) {
-             // Database berhasil mengembalikan data! Gunakan data ini.
-             $dbContextForUser = true;
+             // Database berhasil mengembalikan data! Gabungkan langsung ke system prompt.
+             $systemContent .= "=== DATA DARI DATABASE ===\n" . $dbDataJson . "\n\nINSTRUKSI WAJIB:\n1. Jawab pertanyaan user HANYA berdasarkan data di atas secara natural dan profesional.\n2. Tulis ANGKA PERSIS sesuai aslinya (misal 100000 tulis 100.000), JANGAN ditambah/dikurang.\n3. Sebutkan SEMUA data yang relevan, jangan ada yang dilewatkan.\n4. DILARANG KERAS mengarang data yang tidak ada di atas.\n5. Jawab dalam bahasa Indonesia.";
              $showLiveChatBtn = false;
         } elseif ($bestMatch && $highestScore >= 3) {
             // PRIORITAS 2: Fallback ke Knowledge Base jika database tidak ada data
@@ -246,13 +246,6 @@ class ChatbotController extends Controller
             ];
         }
 
-        // PUSH DB CONTEXT AS A SEPARATE SYSTEM MESSAGE AT THE VERY END
-        if (isset($dbContextForUser)) {
-            $chatMessages[] = [
-                'role' => 'system',
-                'content' => "=== INFORMASI DATABASE ===\n" . $dbDataJson . "\n\nINSTRUKSI: Jawab pertanyaan user terakhir HANYA berdasarkan data di atas secara natural. Tulis ANGKA PERSIS sesuai aslinya, JANGAN ditambah/dikurang dan JANGAN diubah (misal 50000 jangan diubah jadi 500.000). Jika user meminta daftar/list seluruh item, sebutkan semua data di atas. Jawab secara profesional, singkat, dan DILARANG menggunakan bahasa gaul!"
-            ];
-        }
 
         // =========================================================================
         // 7. REQUEST KE OLLAMA / API AI
@@ -269,7 +262,7 @@ class ChatbotController extends Controller
                 'model' => env('AI_MODEL', env('OLLAMA_MODEL', 'moonshot-v1-8k')),
                 'messages' => $chatMessages,
                 'stream' => false,
-                'max_tokens' => 150, // Batasi panjang teks untuk AI lokal
+                'max_tokens' => 300, // Beri ruang cukup untuk data database
                 'options' => [
                     'temperature' => 0.1,
                     'top_p' => 0.85,
