@@ -1,5 +1,5 @@
 (function() {
-    console.error("[Chatbot] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.0.1)");
+    console.error("[Chatbot] KODE SCRIPT BERHASIL TER-UPDATE! (Versi 1.1.0 - Protected)");
     
     // 1. Inject Tailwind & AlpineJS if not present
     if (!window.tailwind) {
@@ -25,7 +25,7 @@
 
     // 3. Inject HTML
     const widgetHtml = `
-    <div x-data="chatbotWidget()" class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[999] font-sans">
+    <div x-data="chatbotWidget()" data-fc-chatbot="true" data-fc-version="1.1.0" class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[999] font-sans" style="z-index: 2147483647 !important;">
         <button @click="toggleChat()" :class="isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'" 
             class="w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 hover:shadow-indigo-300 transition-all duration-300 absolute bottom-0 right-0"
             :style="{ backgroundColor: botColor }">
@@ -133,8 +133,8 @@
     div.innerHTML = widgetHtml;
     document.body.appendChild(div);
 
-    // 5. Provide AlpineJS Data Logic
-    window.chatbotWidget = function() {
+    // 5. Provide AlpineJS Data Logic (Protected from client overrides)
+    const __fcBotData = function() {
         return {
             isOpen: false,
             unread: 0,
@@ -527,4 +527,18 @@
             }
         };
     };
+
+    // Lock the widget function so client code CANNOT override it
+    Object.defineProperty(window, 'chatbotWidget', {
+        value: __fcBotData,
+        writable: false,
+        configurable: false
+    });
+
+    // Also lock the common override targets
+    Object.defineProperty(window, '__fcBotData', {
+        value: __fcBotData,
+        writable: false,
+        configurable: false
+    });
 })();
